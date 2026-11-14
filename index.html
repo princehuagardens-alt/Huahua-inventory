@@ -93,6 +93,10 @@ button{cursor:pointer}
   box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .qbtn .ic{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center}
 .qbtn .ic svg{width:28px;height:28px}
+.daybar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.dnav{border:0;background:#fff;width:56px;height:60px;border-radius:14px;font-size:30px;color:var(--g);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.dmid{flex:1;border:0;background:#fff;border-radius:14px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.dmid .d1{font-size:20px;font-weight:750;color:var(--g)} .dmid .d2{font-size:13px;color:var(--mut)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .stat .lbl{color:var(--mut);font-size:14px} .stat .val{font-size:26px;font-weight:750;color:var(--g);margin-top:6px}
 .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
@@ -156,6 +160,15 @@ textarea.in{min-height:80px}
 .login .card{width:100%;max-width:420px;padding:28px}
 .login h1{color:var(--g);margin:0 0 4px;font-size:26px}
 
+.datebtn{text-align:left;display:flex;align-items:center;justify-content:space-between}
+.datebtn::after{content:"";width:18px;height:18px;flex-shrink:0;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f5c46' stroke-width='2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E")}
+.cal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:19px}
+.cal-h button{border:0;background:#fff;width:52px;height:48px;border-radius:12px;font-size:26px;color:var(--g)}
+.cal-w,.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
+.cal-w span{color:var(--mut);font-size:14px;padding:4px 0}
+.cal-g button{height:52px;border:0;border-radius:12px;background:#fff;font-size:18px}
+.cal-g button.tod{box-shadow:inset 0 0 0 2px var(--g2)}
+.cal-g button.sel{background:var(--g);color:#fff;font-weight:700}
 #toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translateX(-50%);z-index:300;background:#1d2421;color:#fff;
   padding:12px 18px;border-radius:12px;font-size:15px;max-width:90vw;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.show{opacity:1} #toast.err{background:var(--red)}
@@ -233,8 +246,11 @@ const D = { categories: [], suppliers: [], materials: [], products: [], recipe_i
 const STOCK = { m: new Map(), p: new Map() };
 const URLS = new Map();
 let USER = null;
+const DAY = { date: null, moves: [], purchases: [] };
 const UI = { tab: 'home', mView: 'list', pView: 'list', mSearch: '', pSearch: '', mCat: '', pCat: '', showArchived: false };
 try { Object.assign(UI, JSON.parse(localStorage.getItem('ui') || '{}'), { mSearch: '', pSearch: '' }); } catch (e) { }
+UI.day = null;
+const defDate = () => (UI.tab === 'home' && UI.day) || today();
 const saveUI = () => { try { localStorage.setItem('ui', JSON.stringify({ tab: UI.tab, mView: UI.mView, pView: UI.pView })); } catch (e) { } };
 
 const mat = id => D.materials.find(x => x.id === id);
@@ -287,8 +303,21 @@ async function loadAll() {
   STOCK.m.clear(); STOCK.p.clear();
   st.forEach(r => { if (r.material_id) STOCK.m.set(r.material_id, +r.qty); else if (r.product_id) STOCK.p.set(r.product_id, +r.qty); });
   await signPhotos([...D.materials, ...D.products, ...D.purchases].flatMap(x => x.photos || []));
+  await loadDay(UI.day || today());
 }
 
+async function loadDay(date) {
+  const [mv, pu] = await Promise.all([
+    q(sb.from('stock_movements').select('*').eq('occurred_on', date).order('created_at', { ascending: false }).limit(1000)),
+    q(sb.from('purchases').select('*, purchase_items(*)').eq('purchased_on', date).order('created_at', { ascending: false })),
+  ]);
+  Object.assign(DAY, { date, moves: mv, purchases: pu });
+  await signPhotos(pu.flatMap(x => x.photos || []));
+}
+async function gotoDay(date) {
+  UI.day = date; render();
+  await guard(async () => { await loadDay(date); render(); });
+}
 async function ensureDefaults() {
   let changed = false;
   if (!D.categories.length) {
@@ -381,6 +410,35 @@ function confirmBox(msg, okText = '確定') {
 }
 const v = (root, sel) => $(sel, root)?.value ?? '';
 const opts = (list, sel, empty) => (empty !== undefined ? `<option value="">${esc(empty)}</option>` : '') + list.map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+const pad2 = n => String(n).padStart(2, '0');
+const fmtDate = iso => { if (!iso) return '未設定'; const w = '日一二三四五六'[new Date(iso + 'T00:00:00').getDay()]; return `${+iso.slice(0, 4)}年${+iso.slice(5, 7)}月${+iso.slice(8, 10)}日（${w}）`; };
+// 自製日期欄位（不用 iPad 內建的日期選擇器，避免畫面卡住）
+const dateField = (id, val) => `<input type="hidden" id="${id}" value="${val || ''}"><button type="button" class="in datebtn" data-date="${id}">${fmtDate(val)}</button>`;
+function setDate(root, sel, val) { const inp = $(sel, root); inp.value = val || ''; const b = $(`[data-date="${inp.id}"]`, root); if (b) b.textContent = fmtDate(val); }
+function bindDates(root) {
+  $$('[data-date]', root).forEach(b => b.onclick = () => {
+    const inp = $('#' + b.dataset.date, root);
+    pickDate(inp.value || today(), val => { setDate(root, '#' + inp.id, val); inp.dispatchEvent(new Event('change')); });
+  });
+}
+function pickDate(cur, done) {
+  let y = +cur.slice(0, 4), m = +cur.slice(5, 7) - 1;
+  openModal({ title: '選擇日期', body: '<div id="cal"></div>', onMount: (mm, el) => {
+    const draw = () => {
+      const first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate(), t = today();
+      let cells = '';
+      for (let i = 0; i < first; i++) cells += '<span></span>';
+      for (let d = 1; d <= days; d++) { const iso = `${y}-${pad2(m + 1)}-${pad2(d)}`; cells += `<button type="button" data-d="${iso}" class="${iso === cur ? 'sel' : ''} ${iso === t ? 'tod' : ''}">${d}</button>`; }
+      $('#cal', el).innerHTML = `<div class="cal-h"><button type="button" data-n="-1">‹</button><b>${y} 年 ${m + 1} 月</b><button type="button" data-n="1">›</button></div>
+        <div class="cal-w">${[...'日一二三四五六'].map(w => `<span>${w}</span>`).join('')}</div><div class="cal-g">${cells}</div>
+        <div class="btn-row" style="margin-top:16px"><button type="button" class="btn sec" data-q="-2">前天</button><button type="button" class="btn sec" data-q="-1">昨天</button><button type="button" class="btn" data-q="0">今天</button></div>`;
+      $$('[data-n]', el).forEach(b => b.onclick = () => { m += +b.dataset.n; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } draw(); });
+      $$('[data-d]', el).forEach(b => b.onclick = () => { mm.close(); done(b.dataset.d); });
+      $$('[data-q]', el).forEach(b => b.onclick = () => { mm.close(); done(addDays(today(), +b.dataset.q)); });
+    };
+    draw();
+  } });
+}
 const unitList = id => `<datalist id="${id}">${UNITS.map(u => `<option value="${u}">`).join('')}</datalist>`;
 
 // ====================== 畫面框架 ======================
@@ -413,6 +471,7 @@ function renderLogin() {
 
 // ====================== 首頁 ======================
 function viewHome() {
+  const day = UI.day || today(), isToday = day === today(), loaded = DAY.date === day;
   const low = [
     ...D.materials.filter(m => !m.archived && m.min_stock != null && mQty(m.id) < +m.min_stock).map(m => ({ name: m.name, q: mQty(m.id), min: m.min_stock, unit: m.unit, act: 'matDetail', id: m.id })),
     ...D.products.filter(p => !p.archived && p.kind === 'made' && p.min_stock != null && pQty(p.id) < +p.min_stock).map(p => ({ name: p.name, q: pQty(p.id), min: p.min_stock, unit: p.unit, act: 'prodDetail', id: p.id })),
@@ -420,28 +479,50 @@ function viewHome() {
   const exp = D.batches.filter(b => +b.qty_left > 0 && b.expires_on && daysUntil(b.expires_on) <= 3).sort((a, b) => a.expires_on.localeCompare(b.expires_on));
   const stockVal = D.materials.reduce((s, m) => s + Math.max(0, mQty(m.id)) * (+m.avg_cost || 0), 0) + D.products.filter(p => p.kind === 'made').reduce((s, p) => s + Math.max(0, pQty(p.id)) * (+p.avg_cost || 0), 0);
   const unpaid = D.purchases.filter(p => p.payment_type === 'monthly' && !p.payment_id).reduce((s, p) => s + +p.total, 0);
-  const monthStart = today().slice(0, 8) + '01';
-  const monthBuy = D.purchases.filter(p => p.purchased_on >= monthStart).reduce((s, p) => s + +p.total, 0);
-  const q = (act, label, ic, bg, fg) => `<button class="qbtn" data-act="${act}"><span class="ic" style="background:${bg};color:${fg}">${ic}</span>${label}</button>`;
+  const monthStart = day.slice(0, 8) + '01', monthEnd = day.slice(0, 8) + '31';
+  const monthBuy = D.purchases.filter(p => p.purchased_on >= monthStart && p.purchased_on <= monthEnd).reduce((s, p) => s + +p.total, 0);
+  // 這一天的數字
+  const dBuy = DAY.purchases.reduce((s, p) => s + +p.total, 0);
+  const dLoss = DAY.moves.filter(m => m.reason === 'loss').reduce((s, m) => s - m.qty_change * m.unit_cost, 0);
+  const dMake = DAY.moves.filter(m => m.reason === 'produce_in');
+  const dOther = DAY.moves.filter(m => m.reason !== 'purchase');
+  const groups = [['produce_in', '製作入庫'], ['produce_out', '製作用料'], ['loss', '報損'], ['count', '盤點調整'], ['manual_in', '手動入庫'], ['manual_out', '手動出庫'], ['opening', '期初庫存'], ['sale', '銷售']]
+    .map(([r, l]) => [l, dOther.filter(m => m.reason === r)]).filter(([, a]) => a.length);
+  const w = '日一二三四五六'[new Date(day + 'T00:00:00').getDay()];
+  const qb = (act, label, ic, bg, fg) => `<button class="qbtn" data-act="${act}"><span class="ic" style="background:${bg};color:${fg}">${ic}</span>${label}</button>`;
   const html = `
+    <div class="daybar">
+      <button class="dnav" data-act="dayShift" data-n="-1" aria-label="前一天">‹</button>
+      <button class="dmid" data-act="dayPick"><span class="d1">${+day.slice(5, 7)} 月 ${+day.slice(8, 10)} 日（${w}）</span><span class="d2">${isToday ? '今天' : day.slice(0, 4) + ' 年・點這裡選其他日期'}</span></button>
+      <button class="dnav" data-act="dayShift" data-n="1" aria-label="後一天">›</button>
+      ${isToday ? '' : '<button class="btn sm sec" data-act="dayToday">回到今天</button>'}
+    </div>
     <div class="stats">
-      <div class="card stat"><div class="lbl">庫存總值（成本）</div><div class="val">${money(stockVal)}</div></div>
-      <div class="card stat"><div class="lbl">本月進貨</div><div class="val">${money(monthBuy)}</div></div>
-      <div class="card stat"><div class="lbl">未付月結</div><div class="val" style="color:${unpaid ? 'var(--amb)' : 'var(--g)'}">${money(unpaid)}</div></div>
+      <div class="card stat"><div class="lbl">這天進貨</div><div class="val">${loaded ? money(dBuy) : '…'}</div><div class="mut" style="font-size:13px;margin-top:4px">${DAY.purchases.length} 張進貨單</div></div>
+      <div class="card stat"><div class="lbl">這天報損（成本）</div><div class="val" style="color:${dLoss ? 'var(--red)' : 'var(--g)'}">${loaded ? money(dLoss) : '…'}</div></div>
+      <div class="card stat"><div class="lbl">這天製作</div><div class="val">${dMake.length} <span style="font-size:16px">批</span></div><div class="mut" style="font-size:13px;margin-top:4px">${esc(dMake.map(m => prod(m.product_id)?.name + ' ×' + qf(m.qty_change)).join('、'))}</div></div>
     </div>
-    <div class="sec-title"><h2>快速記錄</h2></div>
+    <div class="sec-title"><h2>記錄在 ${+day.slice(5, 7)}/${+day.slice(8, 10)}</h2></div>
     <div class="quick">
-      ${q('newPurchase', '進貨', I.truck, '#e8f0fa', '#2b6cb0')}
-      ${q('produce', '製作', I.pot, '#e7f3ee', '#1f5c46')}
-      ${q('lossPick', '報損', I.trash, '#fbeaea', '#c0392b')}
-      ${q('stocktake', '盤點', I.check, '#fdf3e1', '#b7791f')}
-      ${q('newMaterial', '新增原料', I.box, '#eef1ee', '#4a5550')}
-      ${q('newProduct', '新增商品', I.bag, '#eef1ee', '#4a5550')}
+      ${qb('newPurchase', '進貨', I.truck, '#e8f0fa', '#2b6cb0')}
+      ${qb('produce', '製作', I.pot, '#e7f3ee', '#1f5c46')}
+      ${qb('lossPick', '報損', I.trash, '#fbeaea', '#c0392b')}
+      ${qb('stocktake', '盤點', I.check, '#fdf3e1', '#b7791f')}
+      ${qb('newMaterial', '新增原料', I.box, '#eef1ee', '#4a5550')}
+      ${qb('newProduct', '新增商品', I.bag, '#eef1ee', '#4a5550')}
     </div>
-    ${exp.length ? `<div class="sec-title"><h2>快到期的批次</h2></div><div class="card">${exp.map(b => { const d = daysUntil(b.expires_on); const p = prod(b.product_id); return `<div class="row" data-act="prodDetail" data-id="${b.product_id}"><div><b>${esc(p?.name)}</b><div class="mut" style="font-size:14px">${dm(b.made_on)} 製作・剩 ${qf(b.qty_left)} ${esc(p?.unit || '')}</div></div><span class="badge ${d < 0 ? 'r' : 'a'}">${d < 0 ? `已過期 ${-d} 天` : d === 0 ? '今天到期' : `${d} 天後到期`}</span></div>`; }).join('')}</div>` : ''}
-    ${low.length ? `<div class="sec-title"><h2>庫存不足</h2></div><div class="card">${low.map(x => `<div class="row" data-act="${x.act}" data-id="${x.id}"><b>${esc(x.name)}</b><span><span class="neg big">${qf(x.q)}</span> <span class="mut">／最低 ${qf(x.min)} ${esc(x.unit)}</span></span></div>`).join('')}</div>` : ''}
-    <div class="sec-title"><h2>最近的庫存異動</h2></div>
-    ${D.moves.length ? `<div class="card">${D.moves.slice(0, 15).map(moveRow).join('')}</div>` : `<div class="empty">還沒有任何紀錄。先到「原料」新增原料，或按上方「進貨」開始。</div>`}`;
+    ${isToday && exp.length ? `<div class="sec-title"><h2>快到期的批次</h2></div><div class="card">${exp.map(b => { const d = daysUntil(b.expires_on); const p = prod(b.product_id); return `<div class="row" data-act="prodDetail" data-id="${b.product_id}"><div><b>${esc(p?.name)}</b><div class="mut" style="font-size:14px">${dm(b.made_on)} 製作・剩 ${qf(b.qty_left)} ${esc(p?.unit || '')}</div></div><span class="badge ${d < 0 ? 'r' : 'a'}">${d < 0 ? `已過期 ${-d} 天` : d === 0 ? '今天到期' : `${d} 天後到期`}</span></div>`; }).join('')}</div>` : ''}
+    ${isToday && low.length ? `<div class="sec-title"><h2>庫存不足</h2></div><div class="card">${low.map(x => `<div class="row" data-act="${x.act}" data-id="${x.id}"><b>${esc(x.name)}</b><span><span class="neg big">${qf(x.q)}</span> <span class="mut">／最低 ${qf(x.min)} ${esc(x.unit)}</span></span></div>`).join('')}</div>` : ''}
+    <div class="sec-title"><h2>這天的進貨單</h2></div>
+    ${!loaded ? '<div class="empty">載入中…</div>' : DAY.purchases.length ? `<div class="grid">${DAY.purchases.map(purchaseCard).join('')}</div>` : '<div class="empty">這天沒有進貨</div>'}
+    <div class="sec-title"><h2>這天的庫存異動</h2></div>
+    ${!loaded ? '<div class="empty">載入中…</div>' : groups.length ? groups.map(([l, a]) => `<div class="card" style="margin-bottom:10px"><div class="lab" style="margin:0 0 2px">${l}</div>${a.map(moveRow).join('')}</div>`).join('') : '<div class="empty">這天沒有其他庫存異動（進貨請看上方）</div>'}
+    <div class="sec-title"><h2>整體狀況</h2></div>
+    <div class="stats">
+      <div class="card stat"><div class="lbl">目前庫存總值（成本）</div><div class="val">${money(stockVal)}</div></div>
+      <div class="card stat"><div class="lbl">${+day.slice(5, 7)} 月進貨</div><div class="val">${money(monthBuy)}</div></div>
+      <div class="card stat"><div class="lbl">未付月結</div><div class="val" style="color:${unpaid ? 'var(--amb)' : 'var(--g)'}">${money(unpaid)}</div></div>
+    </div>`;
   return { title: '花花公子 庫存', html };
 }
 function moveRow(mv) {
@@ -563,10 +644,11 @@ function adjustForm({ material, product, mode, onDone }) {
     ${mode === 'in' ? `<div class="f"><label>每單位成本（選填）</label><input class="in" id="a-c" inputmode="decimal" placeholder="不填就用目前平均成本 ${money(it.avg_cost)}"></div><p class="hint">手動入庫不會記成支出。如果是買來的，請改用「進貨」。</p>` : ''}
     ${mode === 'loss' ? `<div class="f"><label>原因</label><div class="chips" id="a-r">${LOSS_REASONS.map((r, i) => `<button type="button" class="chip ${i === 0 ? 'on' : ''}" data-r="${r}">${r}</button>`).join('')}</div></div>` : ''}
     ${(mode === 'loss' || mode === 'out') && batches.length ? `<div class="f"><label>哪一批</label><select class="in" id="a-b"><option value="">自動（先扣最早做的）</option>${batches.map(b => `<option value="${b.id}">${dm(b.made_on)} 製作・剩 ${qf(b.qty_left)}${b.expires_on ? '・' + dm(b.expires_on) + ' 到期' : ''}</option>`).join('')}</select></div>` : ''}
-    <div class="fr"><div class="f"><label>日期</label><input class="in" type="date" id="a-d" value="${today()}"></div>
+    <div class="fr"><div class="f"><label>日期</label>${dateField('a-d', defDate())}</div>
     <div class="f"><label>備註</label><input class="in" id="a-n"></div></div>`;
   openModal({ title: titles[mode], body, okText: '確定',
     onMount: (md, el) => {
+      bindDates(el);
       $$('#a-r .chip', el).forEach(c => c.onclick = () => { $$('#a-r .chip', el).forEach(x => x.classList.remove('on')); c.classList.add('on'); });
       if (mode === 'count') { const upd = () => { const d = num(v(el, '#a-q')) - cur; $('#a-diff', el).innerHTML = d === 0 ? '數量相同，不會調整' : `會調整 <b class="${d > 0 ? 'pos' : 'neg'}">${d > 0 ? '+' : ''}${qf(d)}</b> ${esc(it.unit)}`; }; $('#a-q', el).oninput = upd; upd(); }
     },
@@ -591,8 +673,8 @@ function lossPick() {
 
 // ====================== 盤點 ======================
 function stocktake() {
-  const st = { t: 'm', changes: {} };
-  openModal({ title: '盤點', wide: true, okText: '儲存盤點', body: `<div class="toolbar"><div class="seg" id="st-seg"><button data-t="m" class="on">原料</button><button data-t="p">成品</button></div><input class="search" id="st-s" placeholder="搜尋"></div><p class="hint" style="margin:-4px 2px 12px">輸入實際數到的數量，有改動的會以黃框標示，最後按「儲存盤點」一次更新</p><div id="st-l"></div>`,
+  const st = { t: 'm', changes: {}, date: defDate() };
+  openModal({ title: '盤點', wide: true, okText: '儲存盤點', body: `<div class="toolbar"><div class="seg" id="st-seg"><button data-t="m" class="on">原料</button><button data-t="p">成品</button></div><input class="search" id="st-s" placeholder="搜尋"></div><p class="hint" style="margin:-4px 2px 12px">盤點日期：${fmtDate(st.date)}。輸入實際數到的數量，有改動的會以黃框標示，最後按「儲存盤點」一次更新</p><div id="st-l"></div>`,
     onMount: (md, el) => {
       const draw = () => {
         const s = v(el, '#st-s').toLowerCase();
@@ -609,7 +691,7 @@ function stocktake() {
     onOk: async md => {
       const todo = Object.entries(st.changes).filter(([, val]) => String(val).trim() !== '').map(([k, val]) => { const [t, id] = k.split(':'); const cur = t === 'm' ? mQty(id) : pQty(id); return { t, id, d: r2(num(val) - cur) }; }).filter(x => x.d !== 0);
       if (!todo.length) { md.close(); toast('沒有需要調整的項目'); return; }
-      for (const x of todo) await q(sb.rpc('adjust_stock', { p_material: x.t === 'm' ? x.id : null, p_product: x.t === 'p' ? x.id : null, p_qty_change: x.d, p_reason: 'count', p_note: '盤點' }));
+      for (const x of todo) await q(sb.rpc('adjust_stock', { p_material: x.t === 'm' ? x.id : null, p_product: x.t === 'p' ? x.id : null, p_qty_change: x.d, p_reason: 'count', p_note: '盤點', p_date: st.date }));
       md.close(); await refresh(); toast(`已調整 ${todo.length} 項`);
     } });
 }
@@ -759,8 +841,8 @@ function produceForm(pid, onDone) {
   if (!made.length) { toast('還沒有「事先製作」類型的商品，請先到商品新增', true); return; }
   const body = `<div class="f"><label>製作哪個商品</label><select class="in" id="m-p">${opts(made, pid || made[0].id)}</select></div>
     <div class="fr"><div class="f"><label>做了幾個</label><input class="in" id="m-q" inputmode="decimal" placeholder="0" style="font-size:22px;font-weight:700;text-align:center"></div>
-    <div class="f"><label>製作日期</label><input class="in" type="date" id="m-d" value="${today()}"></div></div>
-    <div class="f" id="m-ew"><label>到期日</label><input class="in" type="date" id="m-e"></div>
+    <div class="f"><label>製作日期</label>${dateField('m-d', defDate())}</div></div>
+    <div class="f" id="m-ew"><label>到期日</label>${dateField('m-e', '')}</div>
     <div class="box"><div class="lab">會用掉的原料</div><div id="m-need"></div><div class="sum"><span>這批成本</span><b id="m-cost">—</b></div></div>
     <div class="f"><label>備註</label><input class="in" id="m-n"></div>`;
   openModal({ title: '製作', body, okText: '完成製作',
@@ -768,12 +850,13 @@ function produceForm(pid, onDone) {
       const upd = (resetExp) => {
         const p = prod(v(el, '#m-p')), qn = num(v(el, '#m-q')), y = +p.recipe_yield || 1;
         $('#m-ew', el).classList.toggle('hidden', !p.track_batch);
-        if (p.track_batch && p.shelf_life_days && (resetExp || !v(el, '#m-e'))) $('#m-e', el).value = addDays(v(el, '#m-d') || today(), p.shelf_life_days);
+        if (p.track_batch && p.shelf_life_days && (resetExp || !v(el, '#m-e'))) setDate(el, '#m-e', addDays(v(el, '#m-d') || today(), p.shelf_life_days));
         const rs = recipeOf(p.id); let cost = 0;
         $('#m-need', el).innerHTML = rs.length ? rs.map(r => { const m = mat(r.material_id), need = r.qty * qn / y, have = mQty(r.material_id); cost += need * (m?.avg_cost || 0);
           return `<div class="row"><span>${esc(m?.name)}</span><span>${qf(need)} ${esc(m?.unit || '')} <span class="${have < need ? 'neg' : 'mut'}" style="font-size:14px">（庫存 ${qf(have)}${have < need ? '，不足' : ''}）</span></span></div>`; }).join('') : '<p class="hint">這個商品還沒有設定配方，製作時不會扣原料，成本會是 0</p>';
         $('#m-cost', el).textContent = qn > 0 ? `${money(cost)}（每個 ${money(cost / qn)}）` : '—';
       };
+      bindDates(el);
       $('#m-p', el).onchange = () => upd(true); $('#m-q', el).oninput = () => upd(false); $('#m-d', el).onchange = () => upd(true); upd(true);
     },
     onOk: async md => {
@@ -787,14 +870,15 @@ function produceForm(pid, onDone) {
 }
 
 // ====================== 進貨 ======================
+function purchaseCard(pu) {
+  const s = sup(pu.supplier_id), its = pu.purchase_items || [];
+  const summary = its.slice(0, 3).map(i => `${mat(i.material_id)?.name || '?'} ×${qf(i.input_qty)}${i.input_unit ? esc(i.input_unit) : ''}`).join('、') + (its.length > 3 ? ` 等 ${its.length} 項` : '');
+  const pay = pu.payment_type === 'cash' ? '<span class="badge g">現付</span>' : pu.payment_id ? '<span class="badge g">月結・已付</span>' : '<span class="badge a">月結・未付</span>';
+  return `<button class="item" data-act="purDetail" data-id="${pu.id}">${(pu.photos || []).length ? photo(pu.photos) : `<div class="ph">${I.truck}</div>`}<div class="meta"><div class="name">${esc(s?.name || '未指定供應商')}</div>
+    <div class="sub">${dm(pu.purchased_on)}・${esc(summary)}</div><div class="sub">${pay}${pu.has_invoice ? '<span class="badge b">有發票</span>' : ''}</div></div><div class="right"><div class="big">${money(pu.total)}</div></div></button>`;
+}
 function viewPurchases() {
-  const html = D.purchases.length ? `<div class="grid">${D.purchases.map(pu => {
-    const s = sup(pu.supplier_id), its = pu.purchase_items || [];
-    const summary = its.slice(0, 3).map(i => `${mat(i.material_id)?.name || '?'} ×${qf(i.input_qty)}${i.input_unit ? esc(i.input_unit) : ''}`).join('、') + (its.length > 3 ? ` 等 ${its.length} 項` : '');
-    const pay = pu.payment_type === 'cash' ? '<span class="badge g">現付</span>' : pu.payment_id ? '<span class="badge g">月結・已付</span>' : '<span class="badge a">月結・未付</span>';
-    return `<button class="item" data-act="purDetail" data-id="${pu.id}">${(pu.photos || []).length ? photo(pu.photos) : `<div class="ph">${I.truck}</div>`}<div class="meta"><div class="name">${esc(s?.name || '未指定供應商')}</div>
-      <div class="sub">${dm(pu.purchased_on)}・${esc(summary)}</div><div class="sub">${pay}${pu.has_invoice ? '<span class="badge b">有發票</span>' : ''}</div></div><div class="right"><div class="big">${money(pu.total)}</div></div></button>`;
-  }).join('')}</div>` : `<div class="empty">還沒有進貨紀錄。按右上角「＋新增進貨」開始記錄。</div>`;
+  const html = D.purchases.length ? `<div class="grid">${D.purchases.map(purchaseCard).join('')}</div><p class="hint" style="text-align:center;margin-top:14px">這裡列出最近 300 張。要查某一天，請到首頁用上方的日期切換。</p>` : `<div class="empty">還沒有進貨紀錄。按右上角「＋新增進貨」開始記錄。</div>`;
   return { title: '進貨', action: `<button class="btn sm" data-act="newPurchase">${I.plus}新增進貨</button>`, html };
 }
 
@@ -803,7 +887,7 @@ function purchaseForm() {
   const pe = photoEditor([]);
   const sups = D.suppliers.filter(s => !s.archived);
   const body = `
-    <div class="fr"><div class="f"><label>日期</label><input class="in" type="date" id="u-d" value="${today()}"></div>
+    <div class="fr"><div class="f"><label>日期</label>${dateField('u-d', defDate())}</div>
       <div class="f"><label>供應商</label><select class="in" id="u-s">${opts(sups, '', '未指定')}<option value="__new">＋ 新增供應商…</option></select></div></div>
     <div class="fr"><div class="f"><label>付款方式</label><div class="seg" id="u-pay" style="display:flex"><button type="button" data-p="cash" class="on" style="flex:1">現付</button><button type="button" data-p="monthly" style="flex:1">月結</button></div>
       <p class="hint" id="u-ph"></p></div>
@@ -855,7 +939,7 @@ function purchaseForm() {
       };
       $('#u-add', el).onclick = () => { st.lines.push({ id: '', q: '', u: 'base', price: '' }); drawLines(); };
       $('#u-ship', el).oninput = calc;
-      pe.mount(); drawLines();
+      pe.mount(); drawLines(); bindDates(el);
     },
     onOk: async md => {
       const el = md.el;
@@ -870,7 +954,7 @@ function purchaseForm() {
 }
 
 function purchaseDetail(id) {
-  const pu = D.purchases.find(x => x.id === id); if (!pu) return;
+  const pu = D.purchases.find(x => x.id === id) || DAY.purchases.find(x => x.id === id); if (!pu) return;
   const its = pu.purchase_items || [];
   const body = `
     <div class="card" style="margin-bottom:14px">
@@ -947,6 +1031,9 @@ const ACT = {
   mCat: d => { UI.mCat = d.v; render(); }, pCat: d => { UI.pCat = d.v; render(); },
   newSupplier: () => supplierForm(null), editSupplier: d => supplierForm(sup(d.id)),
   newCat: d => catForm(null, d.k), editCat: d => catForm(cat(d.id)),
+  dayShift: d => gotoDay(addDays(UI.day || today(), +d.n)),
+  dayToday: () => gotoDay(today()),
+  dayPick: () => pickDate(UI.day || today(), val => gotoDay(val)),
   reload: (d, el) => guard(async () => { URLS.clear(); await refresh(); toast('已更新'); }, el),
   logout: async () => { if (await confirmBox('確定要登出嗎？', '登出')) { await sb.auth.signOut(); } },
 };
