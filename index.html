@@ -108,6 +108,26 @@ button{cursor:pointer}
 .stats.stats3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:620px){.stats.stats3{grid-template-columns:1fr 1fr}}
 .f label.check{display:flex;font-size:16px;color:var(--ink);margin:0;font-weight:400}
+.pnl .row{padding:9px 0}
+.pnl .lab-row{border-bottom:0;padding-bottom:2px;color:var(--mut);font-size:14px}
+.pnl .neg-row span:last-child::before{content:"−";margin-right:2px}
+.pnl .sub{background:#f6f8f6;margin:0 -16px;padding:9px 16px}
+.pnl .total{font-size:20px;border-bottom:0;padding-top:14px}
+.legend{display:flex;gap:16px;align-items:center;font-size:14px;margin-bottom:6px;flex-wrap:wrap}
+.legend i,.tip i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.tip{position:absolute;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.12);pointer-events:none;min-width:150px;line-height:1.6}
+.tbl{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{text-align:right;color:var(--mut);font-weight:600;font-size:13px;padding:6px 4px;border-bottom:1px solid var(--line)}
+.tbl td{text-align:right;padding:10px 4px;border-bottom:1px solid var(--line)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl tr:last-child td{border-bottom:0}
+.rb{display:grid;grid-template-columns:110px 1fr 128px;gap:10px;align-items:center;padding:7px 0}
+.rb-n{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-t{height:14px}.rb-b{height:14px;border-radius:0 4px 4px 0}
+.rb-v{text-align:right;font-size:14px;white-space:nowrap}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:860px){.two{grid-template-columns:1fr}}
+@media print{.tabbar,.top .btn,.no-print,.dnav{display:none!important}#app{padding:0}body{background:#fff}.card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}.top{position:static}}
 .daybar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .dnav{border:0;background:#fff;width:56px;height:60px;border-radius:14px;font-size:30px;color:var(--g);box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .dmid{flex:1;border:0;background:#fff;border-radius:14px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,.04)}
@@ -248,13 +268,14 @@ const I = {
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/></svg>',
   list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
   cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4h2l2.4 11h11l2-8H6.2"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/></svg>',
   money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/></svg>',
   coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M9.5 9.5c0-1 1-1.6 2.5-1.6s2.5.7 2.5 1.7-1 1.4-2.5 1.6-2.5.7-2.5 1.8 1 1.7 2.5 1.7 2.5-.6 2.5-1.6"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4h6v3H9zM6 5h3M15 5h3v16H6V5"/><path d="m9 13 2 2 4-4"/></svg>',
 };
 
-const REASON = { opening: '期初庫存', purchase: '進貨', produce_in: '製作入庫', produce_out: '製作用料', sale: '銷售', loss: '報損', count: '盤點調整', manual_in: '手動入庫', manual_out: '手動出庫' };
+const REASON = { opening: '期初庫存', purchase: '進貨', produce_in: '製作入庫', produce_out: '製作用料', sale: '銷售', loss: '報損', count: '盤點調整', manual_in: '手動入庫', manual_out: '手動出庫', use: '活動用料' };
 const LOSS_REASONS = ['枯萎', '破損', '過期', '試吃／贈送', '自用', '其他'];
 const PAY = { cash: '現金', transfer: '轉帳', linepay: 'LINE Pay', other: '其他' };
 const EXP_METHOD = { cash: '現金', transfer: '轉帳', card: '信用卡', other: '其他' };
@@ -355,7 +376,7 @@ async function ensureDefaults() {
   if (!D.categories.length) {
     const rows = [];
     [['material', ['植物', '資材', '食品原料', '包材']], ['product', ['植物類', '加工食品', '手作商品']],
-    ['expense', ['攤位費', '油錢', '包材', '器具設備', '雜支']], ['income', ['場地租借', '農遊活動', '課程']]]
+    ['expense', ['攤位費', '油錢', '包材', '器具設備', '人力', '雜支']], ['income', ['場地租借', '農遊活動', '課程']]]
       .forEach(([kind, names]) => names.forEach((name, i) => rows.push({ kind, name, sort: i })));
     await q(sb.from('categories').insert(rows)); changed = true;
   }
@@ -363,6 +384,7 @@ async function ensureDefaults() {
     await q(sb.from('channels').insert(['市集', '農場現場', '課程', '線上商店'].map((name, i) => ({ name, sort: i })))); changed = true;
   }
   if (D.categories.length && !D.categories.some(c => c.kind === 'expense' && c.name === '器具設備')) { await q(sb.from('categories').insert({ kind: 'expense', name: '器具設備', sort: 10 })); changed = true; }
+  if (D.categories.length && !D.categories.some(c => c.kind === 'expense' && c.name === '人力')) { await q(sb.from('categories').insert({ kind: 'expense', name: '人力', sort: 11 })); changed = true; }
   if (changed) await loadAll();
 }
 
@@ -477,8 +499,8 @@ const unitList = id => `<datalist id="${id}">${UNITS.map(u => `<option value="${
 // ====================== 畫面框架 ======================
 function render() {
   if (!USER) return renderLogin();
-  const tabs = [['home', '首頁', I.home], ['sales', '銷售', I.cart], ['products', '商品', I.bag], ['materials', '原料', I.box], ['purchases', '進貨', I.truck], ['more', '設定', I.gear]];
-  const views = { home: viewHome, sales: viewSales, products: viewProducts, materials: viewMaterials, purchases: viewPurchases, more: viewMore };
+  const tabs = [['home', '首頁', I.home], ['sales', '銷售', I.cart], ['products', '商品', I.bag], ['materials', '原料', I.box], ['purchases', '進貨', I.truck], ['reports', '報表', I.chart], ['more', '設定', I.gear]];
+  const views = { home: viewHome, sales: viewSales, reports: viewReports, products: viewProducts, materials: viewMaterials, purchases: viewPurchases, more: viewMore };
   const { title, action, html } = views[UI.tab]();
   $('#app').innerHTML = `<div class="top"><div class="top-in"><h1>${esc(title)}</h1>${action || ''}</div></div><div class="wrap">${html}</div>
     <nav class="tabbar"><div class="tabbar-in">${tabs.map(([k, l, ic]) => `<button class="tab ${UI.tab === k ? 'on' : ''}" data-tab="${k}">${ic}<span>${l}</span></button>`).join('')}</div></nav>`;
@@ -488,7 +510,7 @@ function render() {
 function bindActions(root) {
   $$('[data-act]', root).forEach(el => el.onclick = e => { e.stopPropagation(); ACT[el.dataset.act](el.dataset, el); });
 }
-async function refresh() { POS.list = null; await loadAll(); render(); }
+async function refresh() { POS.list = null; RPT.key = ''; await loadAll(); render(); }
 
 // ---------- 登入 ----------
 function renderLogin() {
@@ -522,7 +544,7 @@ function viewHome() {
   const sr = saleSummary(DAY.sales || []);
   const dExp = (DAY.expenses || []).reduce((s, x) => s + +x.amount, 0), dInc = (DAY.incomes || []).reduce((s, x) => s + +x.amount, 0);
   setTimeout(() => $$('.wrap [data-sale]').forEach(el => el.onclick = () => saleDetail(DAY.sales.find(x => x.id === el.dataset.sale))));
-  const groups = [['produce_in', '製作入庫'], ['produce_out', '製作用料'], ['loss', '報損'], ['count', '盤點調整'], ['manual_in', '手動入庫'], ['manual_out', '手動出庫'], ['opening', '期初庫存'], ['sale', '銷售']]
+  const groups = [['produce_in', '製作入庫'], ['produce_out', '製作用料'], ['loss', '報損'], ['count', '盤點調整'], ['manual_in', '手動入庫'], ['manual_out', '手動出庫'], ['use', '活動用料'], ['opening', '期初庫存']]
     .map(([r, l]) => [l, dOther.filter(m => m.reason === r)]).filter(([, a]) => a.length);
   const w = '日一二三四五六'[new Date(day + 'T00:00:00').getDay()];
   const qb = (act, label, ic, bg, fg) => `<button class="qbtn" data-act="${act}"><span class="ic" style="background:${bg};color:${fg}">${ic}</span>${label}</button>`;
@@ -558,7 +580,7 @@ function viewHome() {
     <div class="sec-title"><h2>這天的銷售</h2>${DAY.sales?.length ? '<button class="btn sm sec" data-act="goSalesList">看銷售明細</button>' : ''}</div>
     ${!loaded ? '<div class="empty">載入中…</div>' : DAY.sales.length ? `<div class="card">${DAY.sales.map(x => saleRow(x)).join('')}</div>` : '<div class="empty">這天沒有銷售</div>'}
     <div class="sec-title"><h2>這天的支出與收入</h2></div>
-    ${!loaded ? '<div class="empty">載入中…</div>' : (DAY.expenses.length || DAY.incomes.length) ? `<div class="card">${DAY.expenses.map(x => `<div class="row" data-act="editExpense" data-id="${x.id}" style="cursor:pointer"><div><b>${esc(cat(x.category_id)?.name || '支出')}</b> <span class="badge">${EXP_METHOD[x.method] || x.method}</span>${x.has_invoice ? '<span class="badge b">發票</span>' : ''}${x.event_id ? `<span class="badge">${esc(evt(x.event_id)?.name || '')}</span>` : ''}<div class="mut" style="font-size:14px">${esc(x.note || '')}</div></div><b class="big neg">−${money(x.amount)}</b></div>`).join('')}${DAY.incomes.map(x => `<div class="row" data-act="editIncome" data-id="${x.id}" style="cursor:pointer"><div><b>${esc(cat(x.category_id)?.name || '收入')}</b> <span class="badge g">其他收入</span><div class="mut" style="font-size:14px">${esc(x.note || '')}</div></div><b class="big pos">+${money(x.amount)}</b></div>`).join('')}</div>` : '<div class="empty">這天沒有其他支出或收入</div>'}
+    ${!loaded ? '<div class="empty">載入中…</div>' : (DAY.expenses.length || DAY.incomes.length) ? `<div class="card">${DAY.expenses.map(x => `<div class="row" data-act="editExpense" data-id="${x.id}" style="cursor:pointer"><div><b>${esc(cat(x.category_id)?.name || '支出')}</b> <span class="badge">${EXP_METHOD[x.method] || x.method}</span>${x.has_invoice ? '<span class="badge b">發票</span>' : ''}${x.event_id ? `<span class="badge">${esc(evt(x.event_id)?.name || '')}</span>` : ''}<div class="mut" style="font-size:14px">${esc(x.note || '')}</div></div><b class="big neg">−${money(x.amount)}</b></div>`).join('')}${DAY.incomes.map(x => `<div class="row" data-act="editIncome" data-id="${x.id}" style="cursor:pointer"><div><b>${esc(cat(x.category_id)?.name || '收入')}</b> <span class="badge g">其他收入</span>${x.event_id ? `<span class="badge">${esc(evt(x.event_id)?.name || '')}</span>` : ''}<div class="mut" style="font-size:14px">${esc(x.note || '')}</div></div><b class="big pos">+${money(x.amount)}</b></div>`).join('')}</div>` : '<div class="empty">這天沒有其他支出或收入</div>'}
     <div class="sec-title"><h2>這天的進貨單</h2></div>
     ${!loaded ? '<div class="empty">載入中…</div>' : DAY.purchases.length ? `<div class="grid">${DAY.purchases.map(purchaseCard).join('')}</div>` : '<div class="empty">這天沒有進貨</div>'}
     <div class="sec-title"><h2>這天的庫存異動</h2></div>
@@ -1038,7 +1060,7 @@ function viewSales() {
       ${date !== today() ? '<button class="btn sm sec" data-act="posToday">回到今天</button>' : ''}
     </div>
     <div class="chips">${D.channels.map(c => `<button class="chip ${POS.channel === c.id ? 'on' : ''}" data-act="posCh" data-v="${c.id}">${esc(c.name)}</button>`).join('')}</div>
-    <div class="toolbar"><select class="in" id="pos-ev" style="max-width:460px;flex:1">${opts(evs, POS.event, '不指定場次')}<option value="__new">＋ 新增場次…</option></select>
+    <div class="toolbar"><select class="in" id="pos-ev" style="max-width:460px;flex:1">${opts(evs, POS.event, '不指定場次')}<option value="__new">＋ 新增場次／課程…</option></select>
       ${POS.event ? `<button class="btn sm sec" data-act="editEvent" data-id="${POS.event}">編輯場次</button>` : ''}</div>`;
   setTimeout(() => {
     const se = $('#pos-ev'); if (se) se.onchange = () => {
@@ -1145,8 +1167,10 @@ async function loadSalesList() {
   try {
     const qq = sb.from('sales').select('*, sale_items(*)');
     const rows = await q((POS.event ? qq.eq('event_id', POS.event) : qq.eq('sold_on', POS.date || today())).order('sold_at', { ascending: false }));
-    const exps = POS.event ? await q(sb.from('expenses').select('*').eq('event_id', POS.event)) : [];
-    POS.list = { key, rows, exps };
+    const [exps, incs, uses] = POS.event ? await Promise.all([q(sb.from('expenses').select('*').eq('event_id', POS.event).order('spent_on')),
+      q(sb.from('incomes').select('*').eq('event_id', POS.event).order('received_on')),
+      q(sb.from('stock_movements').select('*').eq('event_id', POS.event).order('created_at'))]) : [[], [], []];
+    POS.list = { key, rows, exps, incs, uses };
   } catch (e) { POS.list = { key, rows: [], exps: [], err: errMsg(e) }; }
   if (UI.tab === 'sales' && POS.mode === 'list') render();
 }
@@ -1166,16 +1190,17 @@ function salesListHtml() {
   const netProfit = r.gp + r.shipIn - r.shipCost - r.fee - booth - other;
   setTimeout(() => $$('[data-sale]').forEach(el => el.onclick = () => saleDetail(rows.find(x => x.id === el.dataset.sale))));
   const prodRows = Object.entries(r.byProd).sort((a, b) => b[1].amt - a[1].amt);
-  return `${e ? `<div class="card" style="margin-bottom:12px"><b style="font-size:18px">${esc(e.name)}</b><div class="mut">${e.start_date}${e.end_date && e.end_date !== e.start_date ? ' ～ ' + e.end_date : ''}${e.location ? '・' + esc(e.location) : ''}</div><p class="hint">這裡是整個場次的合計（所有日期）</p></div>` : ''}
-    <div class="stats">
+  if (e) setTimeout(() => bindEventSection(e, POS.list));
+  return `${e ? eventSectionHtml(e, POS.list) : ''}
+    <div class="stats ${e ? 'hidden' : ''}">
       <div class="card stat"><div class="lbl">營業額</div><div class="val">${money(r.rev)}</div><div class="mut" style="font-size:13px;margin-top:4px">${r.n} 筆</div></div>
       <div class="card stat"><div class="lbl">商品成本</div><div class="val" style="color:var(--ink)">${money(r.cost)}</div></div>
       <div class="card stat"><div class="lbl">毛利</div><div class="val">${money(r.gp)}</div><div class="mut" style="font-size:13px;margin-top:4px">毛利率 ${r.net > 0 ? (r.gp / r.net * 100).toFixed(1) : '—'}%</div></div>
       ${e ? `<div class="card stat"><div class="lbl">淨利</div><div class="val" style="color:${netProfit >= 0 ? 'var(--g)' : 'var(--red)'}">${money(netProfit)}</div><div class="mut" style="font-size:13px;margin-top:4px">已扣攤位費 ${money(booth)}${other ? '、其他支出 ' + money(other) : ''}</div></div>` : ''}
     </div>
-    ${rows.length ? `<div class="sec-title"><h2>收款方式</h2></div><div class="chips" style="flex-wrap:wrap">${Object.entries(r.byPay).map(([k, val]) => `<span class="chip">${PAY[k] || k} ${money(val)}</span>`).join('')}</div>
+    ${rows.length ? `${e ? '<div class="sec-title"><h2>商品銷售</h2></div>' : ''}<div class="sec-title"><h2>收款方式</h2></div><div class="chips" style="flex-wrap:wrap">${Object.entries(r.byPay).map(([k, val]) => `<span class="chip">${PAY[k] || k} ${money(val)}</span>`).join('')}</div>
     <div class="sec-title"><h2>商品銷量</h2></div><div class="card">${prodRows.map(([pid, o]) => `<div class="row"><span>${esc(prod(pid)?.name || '?')}</span><span><b>${qf(o.q)}</b> <span class="mut">${esc(prod(pid)?.unit || '')}</span>　${money(o.amt)}</span></div>`).join('')}</div>
-    <div class="sec-title"><h2>每一筆銷售</h2></div><div class="card">${rows.map(x => saleRow(x, !!e)).join('')}</div>` : `<div class="empty" style="margin-top:12px">${e ? '這個場次還沒有銷售' : '這天沒有銷售紀錄'}</div>`}`;
+    <div class="sec-title"><h2>每一筆銷售</h2></div><div class="card">${rows.map(x => saleRow(x, !!e)).join('')}</div>` : (e ? '' : `<div class="empty" style="margin-top:12px">這天沒有銷售紀錄</div>`)}`;
 }
 function saleDetail(x) {
   if (!x) return;
@@ -1203,12 +1228,12 @@ function saleDetail(x) {
 
 // ====================== 市集場次 ======================
 function eventForm(e, onSaved) {
-  const isNew = !e; e = e || { start_date: defDate(), booth_fee: 0, channel_id: D.channels.find(c => c.name === '市集')?.id || POS.channel };
-  openModal({ title: isNew ? '新增場次' : '編輯場次', okText: '儲存', body: `
-    <div class="f"><label>場次名稱 *</label><input class="in" id="v-n" value="${esc(e.name)}" placeholder="例如：社頭杜鵑花大道市集"></div>
+  const isNew = !e; e = e || { start_date: defDate(), booth_fee: 0, channel_id: (UI.tab === 'sales' && POS.channel) || D.channels.find(c => c.name === '市集')?.id || '' };
+  openModal({ title: isNew ? '新增場次／課程' : '編輯場次／課程', okText: '儲存', body: `
+    <div class="f"><label>場次名稱 *</label><input class="in" id="v-n" value="${esc(e.name)}" placeholder="例如：社頭杜鵑花大道市集、四健會苔球課"></div>
     <div class="fr"><div class="f"><label>開始日期</label>${dateField('v-s', e.start_date)}</div><div class="f"><label>結束日期（一天的話可留空）</label>${dateField('v-e', e.end_date || '')}</div></div>
     <div class="fr"><div class="f"><label>通路</label><select class="in" id="v-c">${opts(D.channels, e.channel_id, '未指定')}</select></div>
-      <div class="f"><label>攤位費</label><input class="in" id="v-b" inputmode="decimal" value="${+e.booth_fee || ''}" placeholder="0"></div></div>
+      <div class="f"><label>攤位費／場地費</label><input class="in" id="v-b" inputmode="decimal" value="${+e.booth_fee || ''}" placeholder="0"></div></div>
     <p class="hint" style="margin-top:-6px;margin-bottom:12px">攤位費填在這裡就好，不用再另外記一筆支出</p>
     <div class="f"><label>地點</label><input class="in" id="v-l" value="${esc(e.location || '')}"></div>
     <div class="f"><label>備註</label><input class="in" id="v-o" value="${esc(e.note || '')}"></div>
@@ -1225,17 +1250,17 @@ function eventForm(e, onSaved) {
 }
 
 // ====================== 支出、收入 ======================
-function expenseForm(x) {
-  const isNew = !x; x = x || { spent_on: defDate(), method: 'cash', photos: [] };
+function expenseForm(x, preset) {
+  const isNew = !x; x = x || Object.assign({ spent_on: defDate(), method: 'cash', photos: [] }, preset || {});
   const pe = photoEditor(x.photos);
   const ecats = cats('expense');
   openModal({ title: isNew ? '新增支出' : '編輯支出', okText: '儲存', body: `
     <div class="fr"><div class="f"><label>日期</label>${dateField('x-d', x.spent_on)}</div>
       <div class="f"><label>金額 *</label><input class="in" id="x-a" inputmode="decimal" value="${x.amount ?? ''}" style="font-size:22px;font-weight:700"></div></div>
     <div class="f"><label>分類</label><div class="chips" style="flex-wrap:wrap" id="x-c">${ecats.map((c, i) => `<button type="button" class="chip ${(x.category_id ? x.category_id === c.id : i === 0) ? 'on' : ''}" data-v="${c.id}">${esc(c.name)}</button>`).join('')}</div>
-      <p class="hint">水壺、剪刀這類可以重複使用的工具，請選「器具設備」</p></div>
+      <p class="hint">水壺、剪刀這類可以重複使用的工具選「器具設備」；請人幫忙的工資選「人力」</p></div>
     <div class="fr"><div class="f"><label>付款方式</label><select class="in" id="x-m">${Object.entries(EXP_METHOD).map(([k, l]) => `<option value="${k}" ${x.method === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-      <div class="f"><label>市集場次（選填）</label><select class="in" id="x-e">${opts(D.events, x.event_id, '不指定')}</select></div></div>
+      <div class="f"><label>場次／課程（選填）</label><select class="in" id="x-e">${opts(D.events, x.event_id, '不指定')}</select></div></div>
     <label class="check" style="margin-bottom:14px"><input type="checkbox" id="x-i" ${x.has_invoice ? 'checked' : ''}><span>已取得發票</span></label>
     <div class="box"><div class="lab">收據照片（選填）</div>${pe.html}</div>
     <div class="f"><label>說明</label><input class="in" id="x-n" value="${esc(x.note || '')}" placeholder="例如：活動用水壺 2 個"></div>
@@ -1249,22 +1274,23 @@ function expenseForm(x) {
       if (isNew) await q(sb.from('expenses').insert(row)); else await q(sb.from('expenses').update(row).eq('id', x.id));
       md.close(); await refresh(); toast('已記錄支出'); } });
 }
-function incomeForm(x) {
-  const isNew = !x; x = x || { received_on: defDate(), method: 'cash' };
+function incomeForm(x, preset) {
+  const isNew = !x; x = x || Object.assign({ received_on: defDate(), method: 'cash' }, preset || {});
   const icats = cats('income');
   openModal({ title: isNew ? '新增其他收入' : '編輯收入', okText: '儲存', body: `
     <p class="hint" style="margin:0 2px 12px">賣商品請用「銷售」。這裡記的是場地租借、農遊活動這類不扣庫存的收入。</p>
     <div class="fr"><div class="f"><label>日期</label>${dateField('i-d', x.received_on)}</div>
       <div class="f"><label>金額 *</label><input class="in" id="i-a" inputmode="decimal" value="${x.amount ?? ''}" style="font-size:22px;font-weight:700"></div></div>
     <div class="f"><label>分類</label><div class="chips" style="flex-wrap:wrap" id="i-c">${icats.map((c, i) => `<button type="button" class="chip ${(x.category_id ? x.category_id === c.id : i === 0) ? 'on' : ''}" data-v="${c.id}">${esc(c.name)}</button>`).join('')}</div></div>
-    <div class="f"><label>收款方式</label><select class="in" id="i-m">${Object.entries(PAY).map(([k, l]) => `<option value="${k}" ${x.method === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <div class="fr"><div class="f"><label>收款方式</label><select class="in" id="i-m">${Object.entries(PAY).map(([k, l]) => `<option value="${k}" ${x.method === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="f"><label>場次／課程（選填）</label><select class="in" id="i-e">${opts(D.events, x.event_id, '不指定')}</select></div></div>
     <div class="f"><label>說明</label><input class="in" id="i-n" value="${esc(x.note || '')}" placeholder="例如：四健會農遊 30 人"></div>
     ${!isNew ? '<button class="btn danger" style="width:100%" id="i-del">刪除這筆收入</button>' : ''}`,
     onMount: (md, el) => { bindDates(el);
       $$('#i-c .chip', el).forEach(c => c.onclick = () => { $$('#i-c .chip', el).forEach(z => z.classList.remove('on')); c.classList.add('on'); });
       const d = $('#i-del', el); if (d) d.onclick = async () => { if (!(await confirmBox('確定刪除這筆收入？', '刪除'))) return; guard(async () => { await q(sb.from('incomes').delete().eq('id', x.id)); md.close(); await refresh(); }); }; },
     onOk: async md => { const el = md.el, amt = num(v(el, '#i-a')); if (amt <= 0) throw new Error('請輸入金額');
-      const row = { received_on: v(el, '#i-d') || today(), amount: amt, category_id: $('#i-c .chip.on', el)?.dataset.v || null, method: v(el, '#i-m'), note: v(el, '#i-n').trim() || null };
+      const row = { received_on: v(el, '#i-d') || today(), amount: amt, category_id: $('#i-c .chip.on', el)?.dataset.v || null, method: v(el, '#i-m'), event_id: v(el, '#i-e') || null, note: v(el, '#i-n').trim() || null };
       if (isNew) await q(sb.from('incomes').insert(row)); else await q(sb.from('incomes').update(row).eq('id', x.id));
       md.close(); await refresh(); toast('已記錄收入'); } });
 }
@@ -1306,6 +1332,290 @@ function payForm(sid, ids, amt, closeParent) {
       md.close(); closeParent && closeParent(); await refresh(); toast(`已付款 ${money(amt)}`); } });
 }
 
+// ====================== 課程／活動：用料 ======================
+function useForm(eventId, onDone) {
+  const e = evt(eventId);
+  const st = { rows: [{ k: '', q: '' }] };
+  const optsHtml = sel => `<option value="">選擇原料或商品</option><optgroup label="原料">${D.materials.filter(m => !m.archived || 'm:' + m.id === sel).map(m => `<option value="m:${m.id}" ${'m:' + m.id === sel ? 'selected' : ''}>${esc(m.name)}（${esc(m.unit)}）</option>`).join('')}</optgroup>
+    <optgroup label="商品">${D.products.filter(p => (p.kind === 'made' || p.kind === 'recipe') && (!p.archived || 'p:' + p.id === sel)).map(p => `<option value="p:${p.id}" ${'p:' + p.id === sel ? 'selected' : ''}>${esc(p.name)}（${esc(p.unit)}）</option>`).join('')}</optgroup>`;
+  const unitCostOf = k => { if (!k) return 0; const [t, id] = k.split(':'); return t === 'm' ? +(mat(id)?.avg_cost || 0) : unitCost(prod(id)); };
+  const stockOf = k => { const [t, id] = k.split(':'); return t === 'm' ? mQty(id) : available(prod(id)); };
+  const unitOf = k => { const [t, id] = k.split(':'); return (t === 'm' ? mat(id) : prod(id))?.unit || ''; };
+  openModal({ title: '記錄用料', okText: '儲存', wide: true, body: `
+    <div class="card" style="margin-bottom:14px"><b>${esc(e?.name || '')}</b><div class="mut" style="font-size:14px">用掉的材料會從庫存扣掉，成本算進這個活動</div></div>
+    <div class="fr"><div class="f"><label>日期</label>${dateField('w-d', e && e.start_date <= today() && today() <= (e.end_date || e.start_date) ? today() : (e?.start_date || defDate()))}</div><div class="f"><label>備註</label><input class="in" id="w-n" placeholder="例如：每人 1 份"></div></div>
+    <div class="box"><div class="lab">用了哪些</div><div id="w-rows"></div><button type="button" class="btn ghost" id="w-add">${I.plus}再加一項</button>
+      <div class="sum tot"><span>用料成本</span><span id="w-tot">NT$0</span></div></div>`,
+    onMount: (md, el) => {
+      bindDates(el);
+      const calc = () => { $('#w-tot', el).textContent = money(st.rows.reduce((s, r) => s + num(r.q) * unitCostOf(r.k), 0)); };
+      const draw = () => {
+        $('#w-rows', el).innerHTML = st.rows.map((r, i) => `<div class="rec-it"><select class="in" data-wi="${i}">${optsHtml(r.k)}</select>
+          <input class="in" inputmode="decimal" data-wq="${i}" value="${esc(r.q)}" placeholder="數量${r.k ? '（' + esc(unitOf(r.k)) + '）' : ''}"><button type="button" class="x" data-wx="${i}">×</button></div>
+          ${r.k ? `<p class="hint" style="margin:-4px 2px 10px">庫存 ${qf(stockOf(r.k) ?? 0)} ${esc(unitOf(r.k))}・每${esc(unitOf(r.k))}成本 ${money(unitCostOf(r.k))}</p>` : ''}`).join('');
+        $$('[data-wi]', el).forEach(s => s.onchange = () => { st.rows[+s.dataset.wi].k = s.value; draw(); });
+        $$('[data-wq]', el).forEach(s => s.oninput = () => { st.rows[+s.dataset.wq].q = s.value; calc(); });
+        $$('[data-wx]', el).forEach(b => b.onclick = () => { st.rows.splice(+b.dataset.wx, 1); if (!st.rows.length) st.rows.push({ k: '', q: '' }); draw(); });
+        calc();
+      };
+      $('#w-add', el).onclick = () => { st.rows.push({ k: '', q: '' }); draw(); };
+      draw();
+    },
+    onOk: async md => {
+      const items = st.rows.filter(r => r.k && num(r.q) > 0).map(r => { const [t, id] = r.k.split(':'); return t === 'm' ? { material_id: id, qty: num(r.q) } : { product_id: id, qty: num(r.q) }; });
+      if (!items.length) throw new Error('請至少選一項並輸入數量');
+      await q(sb.rpc('use_materials', { p: { event_id: eventId, used_on: v(md.el, '#w-d') || today(), note: v(md.el, '#w-n').trim(), items } }));
+      md.close(); await refresh(); toast('已記錄用料'); onDone && onDone();
+    } });
+}
+
+// 活動（場次／課程）的損益
+function eventPnl(ev, d) {
+  const r = saleSummary(d.rows || []);
+  const exps = d.exps || [], incs = d.incs || [], uses = d.uses || [];
+  const laborCat = D.categories.find(c => c.kind === 'expense' && c.name === '人力')?.id;
+  const labor = exps.filter(x => x.category_id === laborCat).reduce((s, x) => s + +x.amount, 0);
+  const otherExp = exps.filter(x => x.category_id !== laborCat).reduce((s, x) => s + +x.amount, 0);
+  const useCost = uses.reduce((s, m) => s - m.qty_change * m.unit_cost, 0);
+  const inc = incs.reduce((s, x) => s + +x.amount, 0);
+  const booth = +(ev?.booth_fee || 0);
+  const revenue = r.net + r.shipIn + inc;
+  const costs = [['商品成本（賣出的商品）', r.cost], ['活動用料', useCost], ['人力', labor], ['攤位費／場地費', booth], ['其他支出', otherExp], ['運費與平台費', r.shipCost + r.fee]];
+  const costTotal = costs.reduce((s, [, val]) => s + val, 0);
+  return { r, inc, revenue, costs, costTotal, net: revenue - costTotal, labor, useCost };
+}
+function eventSectionHtml(ev, d) {
+  const P = eventPnl(ev, d), r = P.r;
+  const groups = {}; (d.uses || []).forEach(m => (groups[m.group_id] = groups[m.group_id] || []).push(m));
+  const line = (l, val, cls = '') => `<div class="row ${cls}"><span>${l}</span><span>${money(val)}</span></div>`;
+  return `<div class="card" style="margin-bottom:12px"><div class="row" style="padding-top:0"><div><b style="font-size:19px">${esc(ev.name)}</b><div class="mut">${ev.start_date}${ev.end_date && ev.end_date !== ev.start_date ? ' ～ ' + ev.end_date : ''}・${esc(chn(ev.channel_id)?.name || '')}${ev.location ? '・' + esc(ev.location) : ''}</div></div>
+      <button class="btn sm sec" data-act="editEvent" data-id="${ev.id}">編輯</button></div>
+      <div class="btn-row" style="margin-top:10px"><button class="btn sec" data-ev-add="inc">${I.coin}記錄收入</button><button class="btn sec" data-ev-add="use">${I.box}記錄用料</button><button class="btn sec" data-ev-add="labor">${I.money}記錄人力</button><button class="btn sec" data-ev-add="exp">其他支出</button></div></div>
+    <div class="stats stats3">
+      <div class="card stat"><div class="lbl">收入合計</div><div class="val">${money(P.revenue)}</div></div>
+      <div class="card stat"><div class="lbl">成本合計</div><div class="val" style="color:var(--ink)">${money(P.costTotal)}</div></div>
+      <div class="card stat"><div class="lbl">實際利潤</div><div class="val" style="color:${P.net >= 0 ? 'var(--g)' : 'var(--red)'}">${money(P.net)}</div><div class="mut" style="font-size:13px;margin-top:4px">利潤率 ${P.revenue > 0 ? (P.net / P.revenue * 100).toFixed(1) : '—'}%</div></div>
+    </div>
+    <div class="sec-title"><h2>利潤怎麼算出來</h2></div>
+    <div class="card pnl">
+      <div class="row lab-row"><b>收入</b></div>
+      ${r.net ? line(`商品銷售（${r.n} 筆）`, r.net) : ''}${P.inc ? line('課程／活動收入', P.inc) : ''}${r.shipIn ? line('運費收入', r.shipIn) : ''}
+      <div class="row sub"><b>收入合計</b><b>${money(P.revenue)}</b></div>
+      <div class="row lab-row"><b>成本</b></div>
+      ${P.costs.filter(([, val]) => val).map(([l, val]) => line(l, val, 'neg-row')).join('') || '<div class="row mut"><span>還沒有記錄成本</span></div>'}
+      <div class="row sub"><b>成本合計</b><b>${money(P.costTotal)}</b></div>
+      <div class="row total"><b>實際利潤</b><b style="color:${P.net >= 0 ? 'var(--g)' : 'var(--red)'}">${money(P.net)}</b></div>
+    </div>
+    ${(d.incs || []).length ? `<div class="sec-title"><h2>收入明細</h2></div><div class="card">${d.incs.map(x => `<div class="row" data-ev-inc="${x.id}" style="cursor:pointer"><div><b>${esc(cat(x.category_id)?.name || '收入')}</b> <span class="badge">${PAY[x.method] || x.method}</span><div class="mut" style="font-size:14px">${x.received_on}${x.note ? '・' + esc(x.note) : ''}</div></div><b class="big pos">${money(x.amount)}</b></div>`).join('')}</div>` : ''}
+    ${Object.keys(groups).length ? `<div class="sec-title"><h2>用料明細</h2></div>${Object.entries(groups).map(([g, ms]) => `<div class="card" style="margin-bottom:10px"><div class="row" style="padding-top:0"><span class="mut">${ms[0].occurred_on}${ms[0].note ? '・' + esc(ms[0].note) : ''}</span><button class="btn sm danger" data-ev-deluse="${g}">刪除這次用料</button></div>
+      ${ms.map(m => { const it = m.material_id ? mat(m.material_id) : prod(m.product_id); return `<div class="row"><span>${esc(it?.name || '?')}</span><span>${qf(-m.qty_change)} ${esc(it?.unit || '')}　<span class="mut">${money(-m.qty_change * m.unit_cost)}</span></span></div>`; }).join('')}</div>`).join('')}` : ''}
+    ${(d.exps || []).length ? `<div class="sec-title"><h2>人力與支出明細</h2></div><div class="card">${d.exps.map(x => `<div class="row" data-ev-exp="${x.id}" style="cursor:pointer"><div><b>${esc(cat(x.category_id)?.name || '支出')}</b><div class="mut" style="font-size:14px">${x.spent_on}${x.note ? '・' + esc(x.note) : ''}</div></div><b class="big neg">−${money(x.amount)}</b></div>`).join('')}</div>` : ''}`;
+}
+function bindEventSection(ev, d) {
+  const laborCat = D.categories.find(c => c.kind === 'expense' && c.name === '人力')?.id;
+  const courseCat = D.categories.find(c => c.kind === 'income' && c.name === '課程')?.id;
+  const evDate = ev.start_date <= today() && today() <= (ev.end_date || ev.start_date) ? today() : ev.start_date;
+  $$('[data-ev-add]').forEach(b => b.onclick = () => {
+    const k = b.dataset.evAdd;
+    if (k === 'use') useForm(ev.id);
+    else if (k === 'inc') incomeForm(null, { event_id: ev.id, received_on: evDate, category_id: courseCat });
+    else if (k === 'labor') expenseForm(null, { event_id: ev.id, spent_on: evDate, category_id: laborCat });
+    else expenseForm(null, { event_id: ev.id, spent_on: evDate });
+  });
+  $$('[data-ev-inc]').forEach(el => el.onclick = () => incomeForm(d.incs.find(x => x.id === el.dataset.evInc)));
+  $$('[data-ev-exp]').forEach(el => el.onclick = () => expenseForm(d.exps.find(x => x.id === el.dataset.evExp)));
+  $$('[data-ev-deluse]').forEach(b => b.onclick = async () => { if (!(await confirmBox('刪除這次用料？材料會加回庫存。', '刪除'))) return;
+    guard(async () => { await q(sb.from('stock_movements').delete().eq('group_id', b.dataset.evDeluse)); await refresh(); toast('已刪除'); }); });
+}
+
+// ====================== 報表 ======================
+const RPT = { kind: 'month', anchor: null, data: null, key: '', tip: null };
+function periodRange(kind, a) {
+  const d = new Date(a + 'T00:00:00'), iso = x => `${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}`;
+  if (kind === 'day') return [a, a];
+  if (kind === 'week') { const s = new Date(d); s.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const e = new Date(s); e.setDate(s.getDate() + 6); return [iso(s), iso(e)]; }
+  if (kind === 'month') return [iso(new Date(d.getFullYear(), d.getMonth(), 1)), iso(new Date(d.getFullYear(), d.getMonth() + 1, 0))];
+  return [`${d.getFullYear()}-01-01`, `${d.getFullYear()}-12-31`];
+}
+function periodShift(kind, a, n) {
+  const d = new Date(a + 'T00:00:00');
+  if (kind === 'day') d.setDate(d.getDate() + n); else if (kind === 'week') d.setDate(d.getDate() + 7 * n);
+  else if (kind === 'month') { d.setDate(1); d.setMonth(d.getMonth() + n); } else d.setFullYear(d.getFullYear() + n);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function periodLabel(kind, s, e) {
+  if (kind === 'day') return fmtDate(s);
+  if (kind === 'week') return `${+s.slice(5, 7)}/${+s.slice(8)} – ${+e.slice(5, 7)}/${+e.slice(8)}`;
+  if (kind === 'month') return `${s.slice(0, 4)} 年 ${+s.slice(5, 7)} 月`;
+  return `${s.slice(0, 4)} 年`;
+}
+async function fetchAll(make) {
+  let out = [], from = 0;
+  for (;;) { const rows = await q(make().range(from, from + 999)); out = out.concat(rows); if (rows.length < 1000) break; from += 1000; }
+  return out;
+}
+async function loadReport(s, e) {
+  const key = s + '_' + e; RPT.key = key; RPT.data = null;
+  try {
+    const [sales, exps, incs, purs, pays, moves] = await Promise.all([
+      fetchAll(() => sb.from('sales').select('*, sale_items(*)').gte('sold_on', s).lte('sold_on', e).order('sold_on')),
+      fetchAll(() => sb.from('expenses').select('*').gte('spent_on', s).lte('spent_on', e).order('spent_on')),
+      fetchAll(() => sb.from('incomes').select('*').gte('received_on', s).lte('received_on', e).order('received_on')),
+      fetchAll(() => sb.from('purchases').select('*').gte('purchased_on', s).lte('purchased_on', e).order('purchased_on')),
+      fetchAll(() => sb.from('supplier_payments').select('*').gte('paid_on', s).lte('paid_on', e).order('paid_on')),
+      fetchAll(() => sb.from('stock_movements').select('*').in('reason', ['loss', 'count', 'use']).gte('occurred_on', s).lte('occurred_on', e).order('occurred_on')),
+    ]);
+    if (RPT.key === key) RPT.data = { sales, exps, incs, purs, pays, moves };
+  } catch (err) { if (RPT.key === key) RPT.data = { err: errMsg(err) }; }
+  if (UI.tab === 'reports' && RPT.key === key) render();
+}
+function computeReport(d, s, e, kind) {
+  const evs = D.events.filter(x => x.start_date >= s && x.start_date <= e);
+  const add = (m, k, val) => { m[k] = (m[k] || 0) + val; };
+  const R = { prodRev: 0, shipIn: 0, inc: 0, cogs: 0, booth: 0, use: 0, loss: 0, count: 0, ship: 0, expByCat: {}, cashIn: 0, cashOut: {}, rev: {}, cost: {}, src: {}, prods: {}, chans: {}, n: d.sales.length };
+  const bk = date => kind === 'year' ? date.slice(0, 7) : date;
+  d.sales.forEach(x => { const net = x.subtotal - x.discount;
+    R.prodRev += net; R.shipIn += +x.shipping_income; R.cogs += +x.cost_total; R.ship += +x.shipping_cost + +x.platform_fee; R.cashIn += +x.total;
+    add(R.rev, bk(x.sold_on), net + +x.shipping_income); add(R.cost, bk(x.sold_on), +x.cost_total + +x.shipping_cost + +x.platform_fee);
+    const c = R.chans[x.channel_id || ''] = R.chans[x.channel_id || ''] || { rev: 0, gp: 0, n: 0 }; c.rev += +x.total; c.gp += net - x.cost_total; c.n++;
+    const disc = x.subtotal > 0 ? (x.subtotal - x.discount) / x.subtotal : 1;
+    (x.sale_items || []).forEach(i => { const amt = i.qty * i.unit_price * disc, p = prod(i.product_id);
+      add(R.src, cat(p?.category_id)?.name || '未分類商品', amt);
+      const o = R.prods[i.product_id] = R.prods[i.product_id] || { q: 0, rev: 0, gp: 0 }; o.q += +i.qty; o.rev += amt; o.gp += amt - i.qty * i.unit_cost; }); });
+  if (R.shipIn) add(R.src, '運費收入', R.shipIn);
+  d.incs.forEach(x => { R.inc += +x.amount; R.cashIn += +x.amount; add(R.rev, bk(x.received_on), +x.amount); add(R.src, cat(x.category_id)?.name || '其他收入', +x.amount); });
+  d.exps.forEach(x => { const n = cat(x.category_id)?.name || '未分類支出'; add(R.expByCat, n, +x.amount); add(R.cashOut, '營運支出', +x.amount); add(R.cost, bk(x.spent_on), +x.amount); });
+  evs.forEach(x => { R.booth += +x.booth_fee; add(R.cost, bk(x.start_date), +x.booth_fee); });
+  if (R.booth) add(R.cashOut, '攤位費／場地費', R.booth);
+  d.moves.forEach(m => { const c = -m.qty_change * m.unit_cost; R[m.reason === 'use' ? 'use' : m.reason === 'loss' ? 'loss' : 'count'] += c; add(R.cost, bk(m.occurred_on), c); });
+  d.purs.filter(p => p.payment_type === 'cash').forEach(p => add(R.cashOut, '進貨（現付）', +p.total));
+  d.pays.forEach(p => add(R.cashOut, '月結付款', +p.amount));
+  if (R.ship) add(R.cashOut, '運費與平台費', R.ship);
+  R.revenue = R.prodRev + R.shipIn + R.inc; R.gp = R.prodRev - R.cogs;
+  R.fees = [...Object.entries(R.expByCat).sort((a, b) => b[1] - a[1]), ['攤位費／場地費', R.booth], ['活動用料', R.use], ['報損', R.loss], ['盤點差異', R.count], ['運費與平台費', R.ship]].filter(([, val]) => Math.abs(val) > 0.004);
+  R.feeTotal = R.fees.reduce((s, [, val]) => s + val, 0);
+  R.net = R.gp + R.shipIn + R.inc - R.feeTotal;
+  R.cashOutTotal = Object.values(R.cashOut).reduce((s, val) => s + val, 0);
+  R.events = evs;
+  // 趨勢的每一段
+  R.buckets = [];
+  if (kind === 'year') for (let m = 1; m <= 12; m++) { const k = `${s.slice(0, 4)}-${pad2(m)}`; R.buckets.push({ k, label: `${m}月`, rev: R.rev[k] || 0, cost: R.cost[k] || 0 }); }
+  else if (kind !== 'day') { let x = s; while (x <= e) { R.buckets.push({ k: x, label: kind === 'week' ? '一二三四五六日'[R.buckets.length] : String(+x.slice(8)), rev: R.rev[x] || 0, cost: R.cost[x] || 0 }); x = addDays(x, 1); } }
+  // 每個活動的利潤
+  R.evRows = evs.map(ev => { const P = eventPnl(ev, { rows: d.sales.filter(x => x.event_id === ev.id), exps: d.exps.filter(x => x.event_id === ev.id), incs: d.incs.filter(x => x.event_id === ev.id), uses: d.moves.filter(m => m.reason === 'use' && m.event_id === ev.id) }); return { ev, P }; });
+  return R;
+}
+const C_REV = '#2a78d6', C_COST = '#eb6834';
+function trendSvg(bks) {
+  const W = 1000, H = 300, L = 64, B = 34, T = 14, R0 = 8, pw = W - L - R0, ph = H - T - B;
+  const max = Math.max(1, ...bks.map(b => Math.max(b.rev, b.cost)));
+  const step = (() => { const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))); return [1, 2, 2.5, 5, 10].map(m => m * p).find(m => m >= raw); })();
+  const top = Math.ceil(max / step) * step, y = val => T + ph - val / top * ph;
+  const slot = pw / bks.length, bw = Math.max(2, Math.min(28, (slot - 6) / 2 - 1));
+  const bar = (x, val, col) => { if (val <= 0) return ''; const h = Math.max(1, ph - (y(val) - T)), r = Math.min(4, bw / 2, h); const y0 = T + ph - h;
+    return `<path d="M${x} ${T + ph}V${y0 + r}Q${x} ${y0} ${x + r} ${y0}H${x + bw - r}Q${x + bw} ${y0} ${x + bw} ${y0 + r}V${T + ph}Z" fill="${col}"/>`; };
+  const every = Math.ceil(bks.length / 16);
+  let g = '';
+  for (let t = 0; t <= top + 1e-9; t += step) g += `<line x1="${L}" x2="${W - R0}" y1="${y(t)}" y2="${y(t)}" stroke="#e6e8e6" stroke-width="1"/><text x="${L - 8}" y="${y(t) + 4}" text-anchor="end" font-size="13" fill="#6b7570">${t >= 10000 ? (t / 10000).toLocaleString('zh-TW', { maximumFractionDigits: 1 }) + '萬' : t.toLocaleString('zh-TW')}</text>`;
+  bks.forEach((b, i) => { const cx = L + slot * i + slot / 2;
+    g += bar(cx - bw - 1, b.rev, C_REV) + bar(cx + 1, b.cost, C_COST);
+    if (i % every === 0) g += `<text x="${cx}" y="${H - 10}" text-anchor="middle" font-size="13" fill="#6b7570">${b.label}</text>`;
+    g += `<rect x="${L + slot * i}" y="${T}" width="${slot}" height="${ph}" fill="transparent" data-tip="${i}" style="cursor:pointer"/>`; });
+  g += `<line x1="${L}" x2="${W - R0}" y1="${T + ph}" y2="${T + ph}" stroke="#c9cec9" stroke-width="1"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="收入與成本趨勢">${g}</svg>`;
+}
+function rankBars(list, color, total) {
+  if (!list.length) return '<div class="mut" style="padding:8px 0">這段期間沒有資料</div>';
+  const top = list.slice(0, 7), rest = list.slice(7).reduce((s, [, val]) => s + val, 0);
+  if (rest > 0) top.push(['其他', rest]);
+  const max = Math.max(...top.map(([, val]) => val), 1);
+  return top.map(([n, val]) => `<div class="rb"><div class="rb-n">${esc(n)}</div><div class="rb-t"><div class="rb-b" style="width:${Math.max(0.5, val / max * 100)}%;background:${color}"></div></div><div class="rb-v">${money(val)} <span class="mut">${total > 0 ? Math.round(val / total * 100) : 0}%</span></div></div>`).join('');
+}
+function viewReports() {
+  const a = RPT.anchor || today(), [s, e] = periodRange(RPT.kind, a), key = s + '_' + e;
+  if (RPT.key !== key) setTimeout(() => loadReport(s, e));
+  const head = `<div class="toolbar no-print"><div class="seg">${[['day', '日報'], ['week', '週報'], ['month', '月報'], ['year', '年報']].map(([k, l]) => `<button data-act="rptKind" data-v="${k}" class="${RPT.kind === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+    <div class="daybar"><button class="dnav no-print" data-act="rptShift" data-n="-1">‹</button><button class="dmid" data-act="rptPick"><span class="d1">${periodLabel(RPT.kind, s, e)}</span><span class="d2">${s} ～ ${e}</span></button><button class="dnav no-print" data-act="rptShift" data-n="1">›</button>
+      ${s <= today() && today() <= e ? '' : '<button class="btn sm sec no-print" data-act="rptNow">回到本期</button>'}</div>`;
+  const d = RPT.key === key ? RPT.data : null;
+  if (!d) return { title: '報表', html: head + '<div class="empty">計算中…</div>' };
+  if (d.err) return { title: '報表', html: head + `<div class="empty neg">${esc(d.err)}</div>` };
+  const R = computeReport(d, s, e, RPT.kind);
+  RPT.R = R;
+  setTimeout(bindReport);
+  const kpi = (l, val, sub, color) => `<div class="card stat"><div class="lbl">${l}</div><div class="val" style="${color ? 'color:' + color : ''}">${money(val)}</div>${sub ? `<div class="mut" style="font-size:13px;margin-top:4px">${sub}</div>` : ''}</div>`;
+  const line = (l, val, cls = '') => `<div class="row ${cls}"><span>${esc(l)}</span><span>${money(val)}</span></div>`;
+  const chans = Object.entries(R.chans).sort((x, y) => y[1].rev - x[1].rev);
+  const prods = Object.entries(R.prods).sort((x, y) => y[1].rev - x[1].rev).slice(0, 10);
+  const costList = [['商品成本', R.cogs], ...R.fees].filter(([, val]) => val > 0).sort((x, y) => y[1] - x[1]);
+  const srcList = Object.entries(R.src).filter(([, val]) => val > 0).sort((x, y) => y[1] - x[1]);
+  const html = head + `
+    <div class="stats stats3">
+      ${kpi('收入合計', R.revenue, `銷售 ${R.n} 筆${R.inc ? '・其他收入 ' + money(R.inc) : ''}`)}
+      ${kpi('毛利', R.gp, `毛利率 ${R.prodRev > 0 ? (R.gp / R.prodRev * 100).toFixed(1) : '—'}%`)}
+      ${kpi('淨利', R.net, `收入扣掉所有成本與費用`, R.net >= 0 ? 'var(--g)' : 'var(--red)')}
+      ${kpi('現金流入', R.cashIn, '實際收到的錢')}
+      ${kpi('現金流出', R.cashOutTotal, '實際付出去的錢', 'var(--ink)')}
+      ${kpi('淨現金流', R.cashIn - R.cashOutTotal, '流入 − 流出', R.cashIn - R.cashOutTotal >= 0 ? 'var(--g)' : 'var(--red)')}
+    </div>
+    ${R.buckets.length ? `<div class="sec-title"><h2>收入與成本趨勢</h2></div>
+    <div class="card"><div class="legend"><span><i style="background:${C_REV}"></i>收入</span><span><i style="background:${C_COST}"></i>成本與費用</span><span class="mut" style="margin-left:auto;font-size:13px">點長條看數字</span></div>
+      <div id="trend" style="position:relative">${trendSvg(R.buckets)}<div class="tip hidden" id="tip"></div></div>
+      <details class="no-print"><summary class="mut" style="font-size:14px;margin-top:6px">顯示數字表格</summary><table class="tbl"><tr><th></th><th>收入</th><th>成本與費用</th><th>淨利</th></tr>${R.buckets.filter(b => b.rev || b.cost).map(b => `<tr><td>${RPT.kind === 'year' ? b.label : b.k.slice(5).replace('-', '/')}</td><td>${money(b.rev)}</td><td>${money(b.cost)}</td><td>${money(b.rev - b.cost)}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">沒有資料</td></tr>'}</table></details></div>` : ''}
+    <div class="two">
+      <div><div class="sec-title"><h2>收入來源</h2></div><div class="card">${rankBars(srcList, C_REV, R.revenue)}</div></div>
+      <div><div class="sec-title"><h2>錢花在哪裡</h2></div><div class="card">${rankBars(costList, C_COST, costList.reduce((x, [, val]) => x + val, 0))}</div></div>
+    </div>
+    <div class="two">
+      <div><div class="sec-title"><h2>損益表</h2></div><div class="card pnl">
+        ${line('商品銷售', R.prodRev)}${R.shipIn ? line('運費收入', R.shipIn) : ''}${R.inc ? line('其他收入（課程、場地等）', R.inc) : ''}
+        <div class="row sub"><b>收入合計</b><b>${money(R.revenue)}</b></div>
+        ${line('商品成本', R.cogs, 'neg-row')}
+        <div class="row sub"><b>毛利</b><b>${money(R.gp)}</b></div>
+        ${R.fees.map(([l, val]) => line(l, val, 'neg-row')).join('')}
+        <div class="row sub"><b>費用合計</b><b>${money(R.feeTotal)}</b></div>
+        <div class="row total"><b>淨利</b><b style="color:${R.net >= 0 ? 'var(--g)' : 'var(--red)'}">${money(R.net)}</b></div></div></div>
+      <div><div class="sec-title"><h2>現金流</h2></div><div class="card pnl">
+        <div class="row lab-row"><b>流入</b></div>${line('銷售收款', R.cashIn - R.inc)}${R.inc ? line('其他收入', R.inc) : ''}
+        <div class="row sub"><b>流入合計</b><b>${money(R.cashIn)}</b></div>
+        <div class="row lab-row"><b>流出</b></div>${Object.entries(R.cashOut).sort((x, y) => y[1] - x[1]).map(([l, val]) => line(l, val, 'neg-row')).join('') || '<div class="row mut"><span>沒有支出</span></div>'}
+        <div class="row sub"><b>流出合計</b><b>${money(R.cashOutTotal)}</b></div>
+        <div class="row total"><b>淨現金流</b><b style="color:${R.cashIn - R.cashOutTotal >= 0 ? 'var(--g)' : 'var(--red)'}">${money(R.cashIn - R.cashOutTotal)}</b></div>
+        <p class="hint">月結進貨在付款那天才算流出；現付進貨在進貨當天算流出</p></div></div>
+    </div>
+    <div class="sec-title"><h2>商品排行（前 10 名）</h2></div>
+    ${prods.length ? `<div class="card"><table class="tbl"><tr><th>商品</th><th>數量</th><th>營業額</th><th>毛利</th></tr>${prods.map(([pid, o]) => `<tr><td>${esc(prod(pid)?.name || '?')}</td><td>${qf(o.q)} ${esc(prod(pid)?.unit || '')}</td><td>${money(o.rev)}</td><td>${money(o.gp)}</td></tr>`).join('')}</table></div>` : '<div class="empty">這段期間沒有銷售</div>'}
+    <div class="sec-title"><h2>通路比較</h2></div>
+    ${chans.length ? `<div class="card"><table class="tbl"><tr><th>通路</th><th>筆數</th><th>營業額</th><th>毛利</th></tr>${chans.map(([cid, o]) => `<tr><td>${esc(chn(cid)?.name || '未指定')}</td><td>${o.n}</td><td>${money(o.rev)}</td><td>${money(o.gp)}</td></tr>`).join('')}</table></div>` : '<div class="empty">這段期間沒有銷售</div>'}
+    ${R.evRows.length ? `<div class="sec-title"><h2>場次與課程</h2></div><div class="card"><table class="tbl"><tr><th>名稱</th><th>收入</th><th>成本</th><th>實際利潤</th></tr>${R.evRows.map(({ ev, P }) => `<tr data-open-ev="${ev.id}" style="cursor:pointer"><td>${esc(ev.name)}<div class="mut" style="font-size:13px">${dm(ev.start_date)}</div></td><td>${money(P.revenue)}</td><td>${money(P.costTotal)}</td><td style="color:${P.net >= 0 ? 'var(--g)' : 'var(--red)'};font-weight:700">${money(P.net)}</td></tr>`).join('')}</table></div>` : ''}
+    <div class="btn-row no-print" style="margin-top:22px"><button class="btn sec" data-act="rptCsv">匯出 Excel（CSV）</button><button class="btn sec" data-act="rptPrint">列印／存成 PDF</button></div>
+    <p class="hint" style="text-align:center">淨利 = 收入 − 商品成本 − 各項費用。進貨不直接算成本，賣出或用掉時才算</p>`;
+  return { title: '報表', html };
+}
+function bindReport() {
+  const box = $('#trend'), tip = $('#tip'); if (!box || !RPT.R) return;
+  const show = el => { const b = RPT.R.buckets[+el.dataset.tip]; if (!b) return;
+    tip.innerHTML = `<b>${RPT.kind === 'year' ? b.label : b.k.slice(5).replace('-', '/')}</b><div><i style="background:${C_REV}"></i>收入 ${money(b.rev)}</div><div><i style="background:${C_COST}"></i>成本 ${money(b.cost)}</div><div>淨利 <b>${money(b.rev - b.cost)}</b></div>`;
+    const r = el.getBoundingClientRect(), br = box.getBoundingClientRect();
+    tip.classList.remove('hidden'); let x = r.left - br.left + r.width / 2 - tip.offsetWidth / 2; x = Math.max(0, Math.min(x, br.width - tip.offsetWidth)); tip.style.left = x + 'px'; tip.style.top = '0px'; };
+  $$('[data-tip]', box).forEach(el => { el.onclick = () => show(el); el.onmouseenter = () => show(el); });
+  box.onmouseleave = () => tip.classList.add('hidden');
+  $$('[data-open-ev]').forEach(el => el.onclick = () => ACT.openEvent({ id: el.dataset.openEv }));
+}
+function reportCsv() {
+  const d = RPT.data, [s, e] = periodRange(RPT.kind, RPT.anchor || today()); if (!d || d.err) return;
+  const rows = [['類型', '日期', '項目', '數量', '單價', '金額', '成本', '通路／分類', '場次', '付款方式', '發票', '備註']];
+  d.sales.forEach(x => (x.sale_items || []).forEach(i => rows.push(['銷售', x.sold_on, prod(i.product_id)?.name || '', i.qty, i.unit_price, r2(i.qty * i.unit_price), r2(i.qty * i.unit_cost), chn(x.channel_id)?.name || '', evt(x.event_id)?.name || '', PAY[x.payment_method] || '', x.has_invoice ? (x.invoice_no || '有') : '', x.note || ''])));
+  d.sales.filter(x => +x.discount).forEach(x => rows.push(['銷售折扣', x.sold_on, '', '', '', -x.discount, '', chn(x.channel_id)?.name || '', evt(x.event_id)?.name || '', '', '', '']));
+  d.incs.forEach(x => rows.push(['其他收入', x.received_on, x.note || '', '', '', x.amount, '', cat(x.category_id)?.name || '', evt(x.event_id)?.name || '', PAY[x.method] || '', '', '']));
+  d.exps.forEach(x => rows.push(['支出', x.spent_on, x.note || '', '', '', -x.amount, '', cat(x.category_id)?.name || '', evt(x.event_id)?.name || '', EXP_METHOD[x.method] || '', x.has_invoice ? '有' : '', '']));
+  d.purs.forEach(x => rows.push(['進貨', x.purchased_on, sup(x.supplier_id)?.name || '', '', '', -x.total, '', x.payment_type === 'cash' ? '現付' : '月結', '', '', x.has_invoice ? '有' : '', x.note || '']));
+  d.pays.forEach(x => rows.push(['月結付款', x.paid_on, sup(x.supplier_id)?.name || '', '', '', -x.amount, '', '', '', SUPPAY[x.method] || '', '', x.check_no || '']));
+  const csv = '﻿' + rows.map(r => r.map(c => { const t = String(c ?? ''); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(',')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = `花花報表_${s}_${e}.csv`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
 // ====================== 設定頁 ======================
 function viewMore() {
   const kinds = [['material', '原料分類'], ['product', '商品大分類'], ['expense', '支出分類'], ['income', '收入分類']];
@@ -1314,15 +1624,15 @@ function viewMore() {
     ${D.suppliers.length ? `<div class="card">${D.suppliers.map(s => `<div class="row" data-act="editSupplier" data-id="${s.id}"><div><b>${esc(s.name)}</b>${s.archived ? '<span class="badge">停用</span>' : ''}<div class="mut" style="font-size:14px">${esc(s.phone || '')}</div></div><span class="badge ${s.default_payment === 'monthly' ? 'a' : 'g'}">${s.default_payment === 'monthly' ? '月結' : '現付'}</span></div>`).join('')}</div>` : '<div class="empty">還沒有供應商</div>'}
     ${kinds.map(([k, l]) => `<div class="sec-title"><h2>${l}</h2><button class="btn sm sec" data-act="newCat" data-k="${k}">${I.plus}新增</button></div>
       <div class="chips" style="flex-wrap:wrap">${cats(k).map(c => `<button class="chip" data-act="editCat" data-id="${c.id}">${esc(c.name)}</button>`).join('') || '<span class="mut">尚無</span>'}</div>`).join('')}
-    <div class="sec-title"><h2>市集場次</h2><button class="btn sm" data-act="newEvent">${I.plus}新增</button></div>
-    ${D.events.length ? `<div class="card">${D.events.slice(0, 30).map(e => `<div class="row" data-act="editEvent" data-id="${e.id}" style="cursor:pointer"><div><b>${esc(e.name)}</b><div class="mut" style="font-size:14px">${e.start_date}${e.end_date && e.end_date !== e.start_date ? ' ～ ' + e.end_date : ''}${e.location ? '・' + esc(e.location) : ''}</div></div><span class="mut">攤位費 ${money(e.booth_fee)}</span></div>`).join('')}</div>` : '<div class="empty">還沒有場次</div>'}
+    <div class="sec-title"><h2>場次與課程活動</h2><button class="btn sm" data-act="newEvent">${I.plus}新增</button></div>
+    ${D.events.length ? `<div class="card">${D.events.slice(0, 30).map(e => `<div class="row" data-act="openEvent" data-id="${e.id}" style="cursor:pointer"><div><b>${esc(e.name)}</b> <span class="badge">${esc(chn(e.channel_id)?.name || '')}</span><div class="mut" style="font-size:14px">${e.start_date}${e.end_date && e.end_date !== e.start_date ? ' ～ ' + e.end_date : ''}${e.location ? '・' + esc(e.location) : ''}</div></div><span class="mut">攤位費 ${money(e.booth_fee)}</span></div>`).join('')}</div>` : '<div class="empty">還沒有場次</div>'}
     <div class="sec-title"><h2>銷售通路</h2></div>
     <div class="chips" style="flex-wrap:wrap">${D.channels.slice().sort(byName).map(c => `<span class="chip">${esc(c.name)}</span>`).join('')}</div>
     <div class="sec-title"><h2>帳號</h2></div>
     <div class="card"><div class="row"><span class="mut">登入帳號</span><span>${esc(USER.email)}</span></div>
       <div class="row"><span class="mut">顯示停用的品項</span><label class="check" style="border:0;padding:0;min-height:0"><input type="checkbox" id="sa" ${UI.showArchived ? 'checked' : ''}></label></div>
       <div class="btn-row" style="margin-top:12px"><button class="btn sec" data-act="reload">重新整理資料</button><button class="btn danger" data-act="logout">登出</button></div></div>
-    <p class="hint" style="text-align:center;margin-top:20px">花花公子 庫存銷售系統・第二期</p>`;
+    <p class="hint" style="text-align:center;margin-top:20px">花花公子 庫存銷售系統・第三期</p>`;
   setTimeout(() => { const s = $('#sa'); if (s) s.onchange = () => { UI.showArchived = s.checked; }; });
   return { title: '設定', html };
 }
@@ -1373,6 +1683,13 @@ const ACT = {
   newExpense: () => expenseForm(null), editExpense: d => expenseForm(DAY.expenses.find(x => x.id === d.id)),
   newIncome: () => incomeForm(null), editIncome: d => incomeForm(DAY.incomes.find(x => x.id === d.id)),
   payables: () => payables(),
+  openEvent: d => { const e = evt(d.id); if (!e) return; POS.event = e.id; if (e.channel_id) POS.channel = e.channel_id; POS.mode = 'list'; UI.tab = 'sales'; saveUI(); render(); scrollTo(0, 0); },
+  rptKind: d => { RPT.kind = d.v; render(); },
+  rptShift: d => { RPT.anchor = periodShift(RPT.kind, RPT.anchor || today(), +d.n); render(); },
+  rptNow: () => { RPT.anchor = today(); render(); },
+  rptPick: () => pickDate(RPT.anchor || today(), val => { RPT.anchor = val; render(); }),
+  rptCsv: () => reportCsv(),
+  rptPrint: () => window.print(),
   dayShift: d => gotoDay(addDays(UI.day || today(), +d.n)),
   dayToday: () => gotoDay(today()),
   dayPick: () => pickDate(UI.day || today(), val => gotoDay(val)),
