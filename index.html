@@ -1198,7 +1198,7 @@ function salesListHtml() {
       <div class="card stat"><div class="lbl">毛利</div><div class="val">${money(r.gp)}</div><div class="mut" style="font-size:13px;margin-top:4px">毛利率 ${r.net > 0 ? (r.gp / r.net * 100).toFixed(1) : '—'}%</div></div>
       ${e ? `<div class="card stat"><div class="lbl">淨利</div><div class="val" style="color:${netProfit >= 0 ? 'var(--g)' : 'var(--red)'}">${money(netProfit)}</div><div class="mut" style="font-size:13px;margin-top:4px">已扣攤位費 ${money(booth)}${other ? '、其他支出 ' + money(other) : ''}</div></div>` : ''}
     </div>
-    ${rows.length ? `${e ? '<div class="sec-title"><h2>商品銷售</h2></div>' : ''}<div class="sec-title"><h2>收款方式</h2></div><div class="chips" style="flex-wrap:wrap">${Object.entries(r.byPay).map(([k, val]) => `<span class="chip">${PAY[k] || k} ${money(val)}</span>`).join('')}</div>
+    ${rows.length ? `<div class="sec-title"><h2>收款方式</h2></div><div class="chips" style="flex-wrap:wrap">${Object.entries(r.byPay).map(([k, val]) => `<span class="chip">${PAY[k] || k} ${money(val)}</span>`).join('')}</div>
     <div class="sec-title"><h2>商品銷量</h2></div><div class="card">${prodRows.map(([pid, o]) => `<div class="row"><span>${esc(prod(pid)?.name || '?')}</span><span><b>${qf(o.q)}</b> <span class="mut">${esc(prod(pid)?.unit || '')}</span>　${money(o.amt)}</span></div>`).join('')}</div>
     <div class="sec-title"><h2>每一筆銷售</h2></div><div class="card">${rows.map(x => saleRow(x, !!e)).join('')}</div>` : (e ? '' : `<div class="empty" style="margin-top:12px">這天沒有銷售紀錄</div>`)}`;
 }
@@ -1390,7 +1390,7 @@ function eventSectionHtml(ev, d) {
   const line = (l, val, cls = '') => `<div class="row ${cls}"><span>${l}</span><span>${money(val)}</span></div>`;
   return `<div class="card" style="margin-bottom:12px"><div class="row" style="padding-top:0"><div><b style="font-size:19px">${esc(ev.name)}</b><div class="mut">${ev.start_date}${ev.end_date && ev.end_date !== ev.start_date ? ' ～ ' + ev.end_date : ''}・${esc(chn(ev.channel_id)?.name || '')}${ev.location ? '・' + esc(ev.location) : ''}</div></div>
       <button class="btn sm sec" data-act="editEvent" data-id="${ev.id}">編輯</button></div>
-      <div class="btn-row" style="margin-top:10px"><button class="btn sec" data-ev-add="inc">${I.coin}記錄收入</button><button class="btn sec" data-ev-add="use">${I.box}記錄用料</button><button class="btn sec" data-ev-add="labor">${I.money}記錄人力</button><button class="btn sec" data-ev-add="exp">其他支出</button></div></div>
+      <div class="btn-row" style="margin-top:10px"><button class="btn" data-ev-add="sale">${I.cart}記錄賣出的商品</button><button class="btn sec" data-ev-add="inc">${I.coin}記錄收入</button><button class="btn sec" data-ev-add="use">${I.box}記錄用料</button><button class="btn sec" data-ev-add="labor">${I.money}記錄人力</button><button class="btn sec" data-ev-add="exp">其他支出</button></div></div>
     <div class="stats stats3">
       <div class="card stat"><div class="lbl">收入合計</div><div class="val">${money(P.revenue)}</div></div>
       <div class="card stat"><div class="lbl">成本合計</div><div class="val" style="color:var(--ink)">${money(P.costTotal)}</div></div>
@@ -1417,7 +1417,8 @@ function bindEventSection(ev, d) {
   const evDate = ev.start_date <= today() && today() <= (ev.end_date || ev.start_date) ? today() : ev.start_date;
   $$('[data-ev-add]').forEach(b => b.onclick = () => {
     const k = b.dataset.evAdd;
-    if (k === 'use') useForm(ev.id);
+    if (k === 'sale') bulkSaleForm(ev, evDate);
+    else if (k === 'use') useForm(ev.id);
     else if (k === 'inc') incomeForm(null, { event_id: ev.id, received_on: evDate, category_id: courseCat });
     else if (k === 'labor') expenseForm(null, { event_id: ev.id, spent_on: evDate, category_id: laborCat });
     else expenseForm(null, { event_id: ev.id, spent_on: evDate });
@@ -1426,6 +1427,47 @@ function bindEventSection(ev, d) {
   $$('[data-ev-exp]').forEach(el => el.onclick = () => expenseForm(d.exps.find(x => x.id === el.dataset.evExp)));
   $$('[data-ev-deluse]').forEach(b => b.onclick = async () => { if (!(await confirmBox('刪除這次用料？材料會加回庫存。', '刪除'))) return;
     guard(async () => { await q(sb.from('stock_movements').delete().eq('group_id', b.dataset.evDeluse)); await refresh(); toast('已刪除'); }); });
+}
+
+// 一次記錄某個場次賣出的商品（市集結束後補登用）
+function bulkSaleForm(ev, defDay) {
+  const st = { qty: {}, price: {}, pay: 'cash', search: '' };
+  const list = D.products.filter(p => !p.archived);
+  openModal({ title: '記錄賣出的商品', okText: '儲存', wide: true, body: `
+    <div class="card" style="margin-bottom:14px"><b>${esc(ev.name)}</b><div class="mut" style="font-size:14px">輸入每樣商品賣了幾個，存好後會扣庫存，成本和利潤自動算進這個場次</div></div>
+    <div class="fr"><div class="f"><label>日期</label>${dateField('b-d', defDay)}</div>
+      <div class="f"><label>收款方式</label><div class="seg" style="display:flex" id="b-pay">${Object.keys(PAY).map(k => `<button type="button" data-v="${k}" class="${k === 'cash' ? 'on' : ''}" style="flex:1">${PAY[k]}</button>`).join('')}</div></div></div>
+    <input class="search" id="b-s" placeholder="搜尋商品" style="width:100%;margin-bottom:12px">
+    <div id="b-list"></div>
+    <div class="box" style="margin-top:12px"><div class="sum"><span>共 <b id="b-n">0</b> 件</span><span></span></div><div class="sum tot"><span>營業額</span><span id="b-tot">NT$0</span></div></div>
+    ${list.length ? '' : '<div class="empty">還沒有商品，請先到「商品」新增</div>'}`,
+    onMount: (md, el) => {
+      bindDates(el);
+      $$('#b-pay button', el).forEach(b => b.onclick = () => { st.pay = b.dataset.v; $$('#b-pay button', el).forEach(z => z.classList.toggle('on', z === b)); });
+      const price = p => st.price[p.id] ?? +p.price;
+      const calc = () => { let n = 0, t = 0; list.forEach(p => { const qn = num(st.qty[p.id]); n += qn; t += qn * price(p); }); $('#b-n', el).textContent = qf(n); $('#b-tot', el).textContent = money(t); };
+      const draw = () => {
+        const s0 = st.search.trim().toLowerCase();
+        $('#b-list', el).innerHTML = list.filter(p => !s0 || p.name.toLowerCase().includes(s0)).map(p => `<div class="st-card ${num(st.qty[p.id]) > 0 ? 'chg' : ''}" data-row="${p.id}">${photo(p.photos)}
+          <div class="meta"><div class="name" style="font-weight:650">${esc(p.name)}</div><div class="mut" style="font-size:14px">單價 <input class="in" inputmode="decimal" data-bp="${p.id}" value="${price(p)}" style="display:inline-block;width:90px;min-height:36px;padding:6px 8px;font-size:15px"></div></div>
+          <div class="stepper"><button type="button" data-bm="${p.id}">−</button><input inputmode="decimal" data-bq="${p.id}" value="${esc(st.qty[p.id] ?? '')}" placeholder="0" style="width:56px;border:0;background:none;text-align:center;font-size:20px;font-weight:700"><button type="button" data-bpl="${p.id}">+</button></div></div>`).join('');
+        const mark = id => $(`[data-row="${id}"]`, el)?.classList.toggle('chg', num(st.qty[id]) > 0);
+        $$('[data-bq]', el).forEach(i => i.oninput = () => { st.qty[i.dataset.bq] = i.value; mark(i.dataset.bq); calc(); });
+        $$('[data-bp]', el).forEach(i => i.oninput = () => { st.price[i.dataset.bp] = num(i.value); calc(); });
+        $$('[data-bpl]', el).forEach(b => b.onclick = () => { const id = b.dataset.bpl; st.qty[id] = String(num(st.qty[id]) + 1); $(`[data-bq="${id}"]`, el).value = st.qty[id]; mark(id); calc(); });
+        $$('[data-bm]', el).forEach(b => b.onclick = () => { const id = b.dataset.bm; const n = Math.max(0, num(st.qty[id]) - 1); st.qty[id] = n ? String(n) : ''; $(`[data-bq="${id}"]`, el).value = st.qty[id]; mark(id); calc(); });
+        calc();
+      };
+      $('#b-s', el).oninput = e => { st.search = e.target.value; draw(); };
+      draw();
+    },
+    onOk: async md => {
+      const items = list.filter(p => num(st.qty[p.id]) > 0).map(p => ({ product_id: p.id, qty: num(st.qty[p.id]), unit_price: st.price[p.id] ?? +p.price }));
+      if (!items.length) throw new Error('請至少輸入一樣商品的數量');
+      await q(sb.rpc('record_sale', { p: { sold_on: v(md.el, '#b-d') || today(), channel_id: ev.channel_id || null, event_id: ev.id, payment_method: st.pay, discount: 0,
+        has_invoice: false, invoice_no: '', shipping_income: 0, shipping_cost: 0, platform_fee: 0, ship_status: null, note: '場次補登', items } }));
+      md.close(); await refresh(); toast(`已記錄 ${items.length} 樣商品`);
+    } });
 }
 
 // ====================== 報表 ======================
